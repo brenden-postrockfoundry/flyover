@@ -7,8 +7,7 @@ import "Model.js" as Model
 
 // Ambient "aircraft nearby" count for the bar. Click launches the flyover
 // TUI scope in a new terminal. Deliberately thin: this widget owns no
-// scope-drawing logic of its own — that all lives in the flyover binary
-// (~/flight-radar).
+// scope-drawing logic of its own — that all lives in the flyover binary.
 //
 // No hyprctl/focus-existing-window logic: this Hyprland build replaced the
 // classic string dispatchers (`hyprctl dispatch focuswindow class:...`) with
@@ -25,8 +24,25 @@ BarWidget {
 
   readonly property string weatherLocationPath: Quickshell.env("HOME") + "/.local/state/omarchy/settings/weather.json"
   readonly property string scopeAppId: "flyover-scope"
-  readonly property string scopeDir: Quickshell.env("HOME") + "/flight-radar"
-  readonly property string scopeBinary: scopeDir + "/target/release/flyover"
+  readonly property string homeDir: Quickshell.env("HOME")
+  // Resolved from PATH at startup (resolveBinaryProc below) when flyover is
+  // properly installed; this is just the fallback for a plain git-clone-and-
+  // cargo-build setup, so the widget still works without assuming any one
+  // install location or repo directory name.
+  property string scopeBinary: homeDir + "/flyover/target/release/flyover"
+
+  Process {
+    id: resolveBinaryProc
+    running: true
+    command: ["/usr/bin/bash", "-c", "command -v flyover"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var resolved = String(text || "").trim()
+        if (resolved) root.scopeBinary = resolved
+      }
+    }
+  }
 
   property real latitude: NaN
   property real longitude: NaN
@@ -90,7 +106,7 @@ BarWidget {
   // interactive shell's PATH.
   Process {
     id: launchProc
-    command: ["/usr/bin/foot", "-a", root.scopeAppId, "-T", "flyover", "-H", "-D", root.scopeDir, root.scopeBinary]
+    command: ["/usr/bin/foot", "-a", root.scopeAppId, "-T", "flyover", "-H", "-D", root.homeDir, root.scopeBinary]
     stderr: StdioCollector {
       onStreamFinished: if (text) console.warn("bren.flyover launch stderr: " + text)
     }
