@@ -72,20 +72,32 @@ BarWidget {
   }
 
   function openScope() {
+    console.log("bren.flyover: openScope() pressed")
     launchProc.running = true
   }
 
   // No IPC with the scope app in v1 (see project-ideas.md) — this just
-  // focuses an existing window by app-id, or launches a new one.
+  // focuses an existing window by app-id, or launches a new one. Absolute
+  // paths throughout since Quickshell's Process doesn't necessarily inherit
+  // an interactive-shell PATH.
   Process {
     id: launchProc
-    command: ["bash", "-c",
-      "if hyprctl clients -j | jq -e '.[] | select(.class == \"" + root.scopeAppId + "\")' >/dev/null 2>&1; then " +
-      "hyprctl dispatch focuswindow 'class:^(" + root.scopeAppId + ")$'; " +
+    command: ["/usr/bin/bash", "-c",
+      "if /usr/bin/hyprctl clients -j | /usr/bin/jq -e '.[] | select(.class == \"" + root.scopeAppId + "\")' >/dev/null 2>&1; then " +
+      "/usr/bin/hyprctl dispatch focuswindow 'class:^(" + root.scopeAppId + ")$'; " +
       "else " +
-      "foot -a " + root.scopeAppId + " -T flyover -H -D '" + root.scopeDir + "' '" + root.scopeBinary + "' & disown; " +
+      "/usr/bin/foot -a " + root.scopeAppId + " -T flyover -H -D '" + root.scopeDir + "' '" + root.scopeBinary + "' & disown; " +
       "fi"
     ]
+    stdout: StdioCollector {
+      onStreamFinished: if (text) console.log("bren.flyover launch stdout: " + text)
+    }
+    stderr: StdioCollector {
+      onStreamFinished: if (text) console.warn("bren.flyover launch stderr: " + text)
+    }
+    onExited: function(exitCode) {
+      console.log("bren.flyover: launchProc exited with code " + exitCode)
+    }
   }
 
   WidgetButton {

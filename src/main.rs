@@ -260,7 +260,14 @@ fn main() -> std::io::Result<()> {
     loop {
         if event::poll(Duration::from_millis(80))? {
             if let Event::Key(key) = event::read()? {
-                match key.code {
+                // Letter keys reflect Caps Lock (crossterm reports the actual
+                // character produced, so 'q' becomes 'Q' with Caps Lock on) —
+                // lowercase before matching so shortcuts work regardless.
+                let code = match key.code {
+                    KeyCode::Char(c) => KeyCode::Char(c.to_ascii_lowercase()),
+                    other => other,
+                };
+                match code {
                     KeyCode::Char('q') | KeyCode::Esc => break,
                     KeyCode::Char('+') | KeyCode::Char('=') | KeyCode::Up => {
                         zoom_radius_nm =
