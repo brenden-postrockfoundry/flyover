@@ -1,10 +1,13 @@
 mod data;
+mod geometry;
 mod scope;
+mod trail;
 mod tui;
 
 use crossterm::event::{self, Event, KeyCode};
 use data::aircraft::Aircraft;
 use std::time::{Duration, Instant};
+use trail::TrailStore;
 
 const ZOOM_STEP_NM: f64 = 5.0;
 
@@ -19,6 +22,7 @@ fn main() -> std::io::Result<()> {
 
     let rx = data::fetch::spawn_poller(location.latitude, location.longitude);
     let mut aircraft: Vec<Aircraft> = Vec::new();
+    let mut trails = TrailStore::default();
     let mut last_error: Option<String> = None;
     let mut last_update: Option<Instant> = None;
     let mut zoom_radius_nm: f64 = 40.0;
@@ -47,6 +51,7 @@ fn main() -> std::io::Result<()> {
         while let Ok(result) = rx.try_recv() {
             match result {
                 Ok(list) => {
+                    trails.update(&list);
                     aircraft = list;
                     last_error = None;
                     last_update = Some(Instant::now());
@@ -68,7 +73,15 @@ fn main() -> std::io::Result<()> {
         };
 
         terminal.draw(|frame| {
-            scope::render(frame, frame.area(), title, &aircraft, zoom_radius_nm, sweep_start);
+            scope::render(
+                frame,
+                frame.area(),
+                title,
+                &aircraft,
+                &trails,
+                zoom_radius_nm,
+                sweep_start,
+            );
         })?;
     }
 
