@@ -209,6 +209,7 @@ fn main() -> std::io::Result<()> {
     let mut last_update: Option<Instant> = None;
     let mut zoom_radius_nm: f64 = DEFAULT_ZOOM_NM;
     let sweep_start = Instant::now();
+    let mut last_frame_ms: u128 = 0;
     let mut theme = ThemeWatcher::new();
     let mut last_theme_check = Instant::now();
     let font = match font::load_monospace() {
@@ -272,11 +273,12 @@ fn main() -> std::io::Result<()> {
             zoom_radius_nm
         );
         let status = match (last_update, &last_error) {
-            (_, Some(_)) => "err".to_string(),
-            (Some(t), None) => format!("↻{}s", t.elapsed().as_secs()),
-            (None, None) => "…".to_string(),
+            (_, Some(_)) => format!("err {last_frame_ms}ms"),
+            (Some(t), None) => format!("↻{}s {last_frame_ms}ms", t.elapsed().as_secs()),
+            (None, None) => format!("… {last_frame_ms}ms"),
         };
 
+        let frame_start = Instant::now();
         terminal.draw(|frame| {
             scope::render(
                 frame,
@@ -292,6 +294,7 @@ fn main() -> std::io::Result<()> {
                 &font,
             );
         })?;
+        last_frame_ms = frame_start.elapsed().as_millis();
     }
 
     tui::restore()?;

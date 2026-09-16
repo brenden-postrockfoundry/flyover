@@ -15,7 +15,7 @@ pub const MAX_ZOOM_NM: f64 = 100.0;
 // Slower than a real radar sweep on purpose: at this render loop's actual
 // frame rate, a smaller angular step per frame reads as smoother than a fast
 // rotation would, even though the frame rate itself hasn't changed.
-const SWEEP_PERIOD: Duration = Duration::from_secs(30);
+const SWEEP_PERIOD: Duration = Duration::from_secs(40);
 const CONTROLS: &str = "q   +/-   0";
 
 fn sweep_angle_deg(sweep_start: Instant) -> f64 {
