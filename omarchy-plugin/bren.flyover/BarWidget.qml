@@ -33,9 +33,13 @@ BarWidget {
   readonly property bool hasLocation: !isNaN(latitude) && !isNaN(longitude)
 
   property int aircraftCount: -1
+  // Plain ASCII on purpose: Qt's Text item doesn't clip overflow, so if an
+  // emoji glyph rendered wider than the font-metrics width Qt used to size
+  // the button, the visible pill would be wider than its actual clickable
+  // hit-area — clicks on the overflowing part would land on nothing.
   readonly property string displayText: !hasLocation
-    ? "✈ ?"
-    : (aircraftCount < 0 ? "✈ …" : ("✈ " + aircraftCount))
+    ? "AC ?"
+    : (aircraftCount < 0 ? "AC .." : ("AC " + aircraftCount))
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
