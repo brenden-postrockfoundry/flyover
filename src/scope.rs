@@ -65,6 +65,9 @@ pub fn render(
     let font_size = picker.font_size();
     let width_px = u32::from(inner.width) * u32::from(font_size.width);
     let height_px = u32::from(inner.height) * u32::from(font_size.height);
+    // Match the terminal's own text size instead of an arbitrary constant,
+    // per feedback that the labels read smaller than the surrounding UI.
+    let label_font_px = f32::from(font_size.height) * 0.85;
 
     let scene = Scene {
         width_px,
@@ -72,6 +75,7 @@ pub fn render(
         aircraft,
         trails,
         zoom_radius_nm,
+        label_font_px,
         sweep_angle_deg: sweep_angle_deg(sweep_start),
         palette,
         font,

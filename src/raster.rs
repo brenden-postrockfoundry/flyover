@@ -8,7 +8,6 @@ use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Shad
 
 const RING_COUNT: u32 = 4;
 const LABEL_ROWS: usize = 3;
-const LABEL_FONT_PX: f32 = 13.0;
 
 pub struct Scene<'a> {
     pub width_px: u32,
@@ -19,6 +18,10 @@ pub struct Scene<'a> {
     pub sweep_angle_deg: f64,
     pub palette: &'a Palette,
     pub font: &'a fontdue::Font,
+    /// Label text size in px, derived from the terminal's actual detected
+    /// cell height so labels read at the same size as the surrounding
+    /// terminal/bar text instead of an arbitrary guessed constant.
+    pub label_font_px: f32,
 }
 
 pub fn render(scene: &Scene) -> RgbaImage {
@@ -200,7 +203,7 @@ fn draw_contacts(
             format!("{:.0}kt", ac.gs.unwrap_or(0.0)),
         ];
 
-        let (width_px, line_h) = measure(scene.font, &lines);
+        let (width_px, line_h) = measure(scene.font, scene.label_font_px, &lines);
         let height_px = line_h * LABEL_ROWS as f32;
 
         let candidates = [
@@ -238,6 +241,7 @@ fn draw_contacts(
             draw_text(
                 pixmap,
                 scene.font,
+                scene.label_font_px,
                 line,
                 chosen.0,
                 chosen.1 + row as f32 * line_h,
@@ -247,26 +251,35 @@ fn draw_contacts(
     }
 }
 
-fn measure(font: &fontdue::Font, lines: &[String; LABEL_ROWS]) -> (f32, f32) {
+fn measure(font: &fontdue::Font, font_px: f32, lines: &[String; LABEL_ROWS]) -> (f32, f32) {
     let mut max_w = 0.0f32;
     for line in lines {
         let mut w = 0.0f32;
         for ch in line.chars() {
-            w += font.metrics(ch, LABEL_FONT_PX).advance_width;
+            w += font.metrics(ch, font_px).advance_width;
         }
         max_w = max_w.max(w);
     }
-    (max_w, LABEL_FONT_PX * 1.25)
+    (max_w, font_px * 1.25)
 }
 
-fn draw_text(pixmap: &mut Pixmap, font: &fontdue::Font, text: &str, x: f32, y: f32, color: Color) {
+#[allow(clippy::too_many_arguments)]
+fn draw_text(
+    pixmap: &mut Pixmap,
+    font: &fontdue::Font,
+    font_px: f32,
+    text: &str,
+    x: f32,
+    y: f32,
+    color: Color,
+) {
     let (r, g, b) = match color {
         Color::Rgb(r, g, b) => (r, g, b),
         _ => (255, 255, 255),
     };
     let mut pen_x = x;
     for ch in text.chars() {
-        let (metrics, bitmap) = font.rasterize(ch, LABEL_FONT_PX);
+        let (metrics, bitmap) = font.rasterize(ch, font_px);
         let glyph_x = pen_x + metrics.xmin as f32;
         let glyph_y = y - metrics.ymin as f32 - metrics.height as f32;
         blit_glyph(pixmap, &bitmap, metrics.width, metrics.height, glyph_x, glyph_y, (r, g, b));

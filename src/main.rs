@@ -77,6 +77,7 @@ fn run_preview(out_path: &str) -> std::io::Result<()> {
         sweep_angle_deg: 50.0,
         palette: &palette,
         font: &font,
+        label_font_px: 18.0 * 0.85,
     };
     let image = raster::render(&scene);
     image
@@ -86,11 +87,111 @@ fn run_preview(out_path: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Dev-only: `flyover --bench` times the raster + Sixel-encode pipeline
+/// against an in-memory TestBackend (no real TTY needed) to diagnose actual
+/// per-frame cost, since this environment can't be used to eyeball a live
+/// frame rate.
+fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+    use ratatui_image::picker::Picker;
+    use ratatui_image::FontSize;
+
+    let font = font::load_monospace()?;
+    let palette = ThemeWatcher::new().palette;
+    let trails = TrailStore::default();
+    let aircraft: Vec<Aircraft> = Vec::new();
+
+    // Representative of a real window: ~80 cols x 30 rows at a typical
+    // JetBrainsMono cell size.
+    let cols = 80u16;
+    let rows = 30u16;
+    #[allow(deprecated)]
+    let mut picker = Picker::from_fontsize(FontSize {
+        width: 9,
+        height: 18,
+    });
+    picker.set_protocol_type(ratatui_image::picker::ProtocolType::Sixel);
+
+    let backend = TestBackend::new(cols, rows);
+    let mut terminal = Terminal::new(backend)?;
+    let sweep_start = Instant::now();
+
+    const N: u32 = 10;
+    let mut raster_total = Duration::ZERO;
+    let mut draw_total = Duration::ZERO;
+
+    for _ in 0..N {
+        let t0 = Instant::now();
+        let font_size = picker.font_size();
+        let width_px = u32::from(cols) * u32::from(font_size.width);
+        let height_px = u32::from(rows) * u32::from(font_size.height);
+        let scene = raster::Scene {
+            width_px,
+            height_px,
+            aircraft: &aircraft,
+            trails: &trails,
+            zoom_radius_nm: 40.0,
+            sweep_angle_deg: 10.0,
+            palette: &palette,
+            font: &font,
+            label_font_px: f32::from(font_size.height) * 0.85,
+        };
+        let image = raster::render(&scene);
+        raster_total += t0.elapsed();
+
+        let t1 = Instant::now();
+        terminal.draw(|frame| {
+            scope::render(
+                frame,
+                frame.area(),
+                "bench".to_string(),
+                "".to_string(),
+                &aircraft,
+                &trails,
+                40.0,
+                sweep_start,
+                &palette,
+                &picker,
+                &font,
+            );
+        })?;
+        draw_total += t1.elapsed();
+        std::hint::black_box(&image);
+    }
+
+    println!(
+        "raster::render: {:.1}ms/frame avg",
+        raster_total.as_secs_f64() * 1000.0 / f64::from(N)
+    );
+    println!(
+        "full terminal.draw (incl. Sixel encode): {:.1}ms/frame avg",
+        draw_total.as_secs_f64() * 1000.0 / f64::from(N)
+    );
+    Ok(())
+}
+
 fn main() -> std::io::Result<()> {
     let mut args = std::env::args().skip(1);
-    if args.next().as_deref() == Some("--preview") {
-        let out_path = args.next().unwrap_or_else(|| "preview.png".to_string());
-        return run_preview(&out_path);
+    match args.next().as_deref() {
+        Some("--preview") => {
+            let out_path = args.next().unwrap_or_else(|| "preview.png".to_string());
+            return run_preview(&out_path);
+        }
+        Some("--bench") => {
+            return run_bench().map_err(|e| std::io::Error::other(e.to_string()));
+        }
+        _ => {}
+    }
+
+    // Sixel encoding is real per-frame work; in a debug build it dominates
+    // frame time so badly (~400ms/frame measured vs ~10ms in release) that
+    // the sweep animation looks like it's jumping every few seconds instead
+    // of rotating smoothly. `cargo run` defaults to debug, so warn plainly
+    // rather than let that read as a rendering bug.
+    if cfg!(debug_assertions) {
+        eprintln!("flyover: running a debug build — the scope will look choppy.");
+        eprintln!("         use `cargo run --release` for smooth animation.");
     }
 
     let location = match data::location::load() {
