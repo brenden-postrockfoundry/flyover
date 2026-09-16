@@ -16,4 +16,11 @@ if [[ -z $binary ]]; then
 fi
 [[ -x $binary ]] || exit 0
 
-exec "$binary" --ascii-snapshot "$HOME/.config/omarchy/branding/screensaver.txt"
+"$binary" --ascii-snapshot "$HOME/.config/omarchy/branding/screensaver.txt"
+
+# Freshness marker for the patched omarchy-screensaver script (see
+# patch-omarchy-screensaver.sh): its presence, and how recently it was
+# touched, is how that script decides to show our content statically
+# instead of running it through a ttfx effect.
+mkdir -p "$HOME/.cache/flyover"
+touch "$HOME/.cache/flyover/screensaver-active"

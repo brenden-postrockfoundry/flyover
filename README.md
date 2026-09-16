@@ -115,6 +115,14 @@ does the rest:
 flyover --ascii-snapshot ~/.config/omarchy/branding/screensaver.txt
 ```
 
+By default `ttfx` puts each refresh through a random animated effect
+(matrix rain, fireworks, etc.), restarting with a new one every few seconds
+— independent of how often the snapshot itself changes. If you'd rather the
+scope just sit there statically (centered, no effect) while flyover is
+actively feeding it, see [`packaging/screensaver/`](packaging/screensaver/)
+for the systemd timer wiring plus an optional patch to Omarchy's
+screensaver script that swaps in static rendering.
+
 ## Dev tools
 
 - `flyover --preview <path>.png` — renders a synthetic scene straight to a
