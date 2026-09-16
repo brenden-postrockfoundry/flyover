@@ -73,25 +73,17 @@ cargo run --release
 
 ## Bar widget (Omarchy)
 
-A companion widget lives in `omarchy-plugin/bren.flyover/` — an ambient
-aircraft-count pill for the bar that launches (or focuses) the scope on
-click. It's part of this repo rather than a separately installable
-`omarchy plugin add`-able package (Omarchy's plugin installer only clones a
-git repo's root, and this one lives alongside the main app), so install it
-by hand:
+A companion widget — an ambient aircraft-count pill for the bar that
+launches (or focuses) the scope on click — lives in its own repo,
+[flyover-pill](https://github.com/<you>/flyover-pill), so it installs the
+normal Omarchy way:
 
 ```
-cp -r omarchy-plugin/bren.flyover ~/.config/omarchy/plugins/<you>.flyover
+omarchy plugin add https://github.com/<you>/flyover-pill.git --enable
+omarchy bar put bren.flyover --section right
 ```
 
-Then edit the copied `manifest.json` and `BarWidget.qml`'s `moduleName` to
-match whatever id you used, and add it to your bar:
-
-```
-omarchy bar put <you>.flyover --section right
-```
-
-The pill resolves the `flyover` binary via `PATH` first, falling back to
+It resolves the `flyover` binary via `PATH` first, falling back to
 `$HOME/flyover/target/release/flyover` — so it works whether you've
 `cargo install`ed it or just built it in place.
 
