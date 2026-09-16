@@ -1,6 +1,7 @@
 # flyover
 
 [![CI](https://github.com/linuxbren/flyover/actions/workflows/ci.yml/badge.svg)](https://github.com/linuxbren/flyover/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/flyover.svg)](https://crates.io/crates/flyover)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A real-time ADS-B radar scope, in your terminal.
@@ -37,7 +38,16 @@ Press `v` any time to switch between them.
   a fontconfig `monospace` alias (falls back to a classic CRT-green palette
   off Omarchy) and a set location (see below).
 
-## Build
+## Install
+
+The pill (see below) checks `PATH` first, so `cargo install` is the
+easiest way to get set up:
+
+```
+cargo install flyover
+```
+
+## Build from source
 
 ```
 git clone https://github.com/linuxbren/flyover.git
