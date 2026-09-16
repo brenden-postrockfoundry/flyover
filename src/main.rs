@@ -1,12 +1,15 @@
 mod data;
+mod font;
 mod geometry;
+mod raster;
 mod scope;
 mod theme;
 mod trail;
 mod tui;
 
 use crossterm::event::{self, Event, KeyCode};
-use data::aircraft::Aircraft;
+use data::aircraft::{Aircraft, Altitude};
+use ratatui_image::picker::Picker;
 use std::time::{Duration, Instant};
 use theme::ThemeWatcher;
 use trail::TrailStore;
@@ -15,7 +18,81 @@ const ZOOM_STEP_NM: f64 = 5.0;
 const DEFAULT_ZOOM_NM: f64 = 40.0;
 const THEME_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
+/// Dev-only: `flyover --preview out.png` renders a synthetic scene straight
+/// to a PNG, bypassing the terminal/network entirely — useful for checking
+/// the raster output without a live TTY (which this can't assume exists).
+fn run_preview(out_path: &str) -> std::io::Result<()> {
+    let font = font::load_monospace().map_err(std::io::Error::other)?;
+    let palette = ThemeWatcher::new().palette;
+
+    fn ac(hex: &str, flight: &str, alt_ft: i64, gs: f64, rate: f64, squawk: &str, dst: f64, dir: f64) -> Aircraft {
+        Aircraft {
+            hex: hex.to_string(),
+            flight: Some(flight.to_string()),
+            r: None,
+            t: None,
+            alt_baro: Some(Altitude::Feet(alt_ft)),
+            gs: Some(gs),
+            track: Some(dir),
+            baro_rate: Some(rate),
+            geom_rate: None,
+            squawk: Some(squawk.to_string()),
+            lat: None,
+            lon: None,
+            dst: Some(dst),
+            dir: Some(dir),
+        }
+    }
+
+    let aircraft = vec![
+        ac("a1", "UAL1234", 35000, 420.0, 0.0, "1200", 20.0, 45.0),
+        ac("a2", "SWA1563", 8000, 250.0, -1800.0, "1200", 12.0, 200.0),
+        ac("a3", "ENY3937", 34000, 445.0, 900.0, "1200", 30.0, 300.0),
+        ac("a4", "N247JH", 5000, 150.0, 0.0, "7700", 15.0, 130.0),
+        ac("a5", "AAL2159", 36000, 406.0, 0.0, "1200", 5.0, 5.0),
+    ];
+
+    let mut trails = TrailStore::default();
+    // Feed a few slightly-shifted snapshots so each contact has real trail
+    // history to render (a single point wouldn't show the comet fade).
+    for step in 0..5 {
+        let shifted: Vec<Aircraft> = aircraft
+            .iter()
+            .map(|a| {
+                let mut a = a.clone();
+                a.dst = a.dst.map(|d| d - f64::from(4 - step) * 0.8);
+                a
+            })
+            .collect();
+        trails.update(&shifted);
+    }
+    trails.update(&aircraft);
+
+    let scene = raster::Scene {
+        width_px: 900,
+        height_px: 900,
+        aircraft: &aircraft,
+        trails: &trails,
+        zoom_radius_nm: 40.0,
+        sweep_angle_deg: 50.0,
+        palette: &palette,
+        font: &font,
+    };
+    let image = raster::render(&scene);
+    image
+        .save(out_path)
+        .map_err(std::io::Error::other)?;
+    println!("wrote {out_path}");
+    Ok(())
+}
+
 fn main() -> std::io::Result<()> {
+    let mut args = std::env::args().skip(1);
+    if args.next().as_deref() == Some("--preview") {
+        let out_path = args.next().unwrap_or_else(|| "preview.png".to_string());
+        return run_preview(&out_path);
+    }
+
     let location = match data::location::load() {
         Ok(loc) => loc,
         Err(err) => {
@@ -33,8 +110,23 @@ fn main() -> std::io::Result<()> {
     let sweep_start = Instant::now();
     let mut theme = ThemeWatcher::new();
     let mut last_theme_check = Instant::now();
+    let font = match font::load_monospace() {
+        Ok(f) => f,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
 
     let mut terminal = tui::init()?;
+    let picker = match Picker::from_query_stdio() {
+        Ok(p) => p,
+        Err(err) => {
+            tui::restore()?;
+            eprintln!("couldn't detect terminal image support: {err}");
+            std::process::exit(1);
+        }
+    };
 
     loop {
         if event::poll(Duration::from_millis(80))? {
@@ -95,6 +187,8 @@ fn main() -> std::io::Result<()> {
                 zoom_radius_nm,
                 sweep_start,
                 &theme.palette,
+                &picker,
+                &font,
             );
         })?;
     }
