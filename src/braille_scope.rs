@@ -193,6 +193,17 @@ pub fn render(
                         break;
                     }
                 }
+
+                // Keep the label fully on-screen even when its contact is
+                // near the edge of the visible range — sliding it back in
+                // reads much better than letting text run off the canvas
+                // and get clipped. Only the label moves; the blip stays put.
+                chosen.0 = chosen.0.max(-x_reach).min((x_reach - width_nm).max(-x_reach));
+                chosen.1 = chosen
+                    .1
+                    .max((-zoom_radius_nm + height_nm).min(zoom_radius_nm))
+                    .min(zoom_radius_nm);
+
                 placed.push(LabelBox {
                     x: chosen.0,
                     y: chosen.1,

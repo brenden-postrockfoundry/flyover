@@ -229,6 +229,22 @@ fn draw_contacts(
                 break;
             }
         }
+
+        // Keep the label fully on-screen even when its contact is near the
+        // edge of the visible range — sliding it back in reads much better
+        // than letting text run off the image and get clipped. Only clamps
+        // the label's own position; the blip itself is untouched, so this
+        // stays correct as the aircraft keeps moving toward/along the edge.
+        let margin = gap;
+        chosen.0 = chosen
+            .0
+            .max(margin)
+            .min((scene.width_px as f32 - width_px - margin).max(margin));
+        chosen.1 = chosen
+            .1
+            .max(margin)
+            .min((scene.height_px as f32 - height_px - margin).max(margin));
+
         placed.push(LabelBox {
             x: chosen.0,
             y: chosen.1,
@@ -236,6 +252,12 @@ fn draw_contacts(
             h: height_px,
         });
 
+        // draw_text's y is a text baseline, not the top of the glyph — the
+        // ascent sits above it. chosen.1/LabelBox treat the label as
+        // starting at its visual top (for collision-avoidance and edge
+        // clamping), so only the actual draw call needs the baseline
+        // conversion, via an approximate ascent fraction of the row height.
+        let baseline_offset = line_h * 0.8;
         for (row, line) in lines.iter().enumerate() {
             draw_text(
                 pixmap,
@@ -243,7 +265,7 @@ fn draw_contacts(
                 scene.label_font_px,
                 line,
                 chosen.0,
-                chosen.1 + row as f32 * line_h,
+                chosen.1 + row as f32 * line_h + baseline_offset,
                 base,
             );
         }
