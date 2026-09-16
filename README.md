@@ -1,5 +1,8 @@
 # flyover
 
+[![CI](https://github.com/linuxbren/flyover/actions/workflows/ci.yml/badge.svg)](https://github.com/linuxbren/flyover/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A real-time ADS-B radar scope, in your terminal.
 
 ![flyover screenshot](docs/screenshot.png)
