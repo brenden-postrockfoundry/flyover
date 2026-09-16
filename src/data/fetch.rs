@@ -3,7 +3,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-const MAX_RADIUS_NM: u32 = 100;
+pub const MAX_RADIUS_NM: u32 = 100;
 pub const REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 
 pub fn fetch_nearby(lat: f64, lon: f64) -> Result<Vec<Aircraft>, String> {

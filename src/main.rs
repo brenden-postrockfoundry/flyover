@@ -222,7 +222,12 @@ fn run_ascii_snapshot(out_path: &str) -> std::io::Result<()> {
     let location = data::location::load().map_err(std::io::Error::other)?;
     let aircraft = data::fetch::fetch_nearby(location.latitude, location.longitude)
         .map_err(std::io::Error::other)?;
-    let text = ascii_snapshot::render(70, 35, &aircraft, 40.0);
+    // Match the fetch radius exactly, so every contact the pill counts (it
+    // queries the same MAX_RADIUS_NM) also appears on the screensaver —
+    // otherwise contacts beyond the TUI's tighter default zoom (40nm) were
+    // silently dropped, making the scope look empty while the pill said
+    // otherwise.
+    let text = ascii_snapshot::render(70, 35, &aircraft, data::fetch::MAX_RADIUS_NM as f64);
     std::fs::write(out_path, text)?;
     println!("wrote {out_path}");
     Ok(())
