@@ -23,12 +23,14 @@ pub fn fetch_nearby(lat: f64, lon: f64) -> Result<Vec<Aircraft>, String> {
 /// loop never blocks on network I/O — it just drains this non-blockingly.
 pub fn spawn_poller(lat: f64, lon: f64) -> mpsc::Receiver<Result<Vec<Aircraft>, String>> {
     let (tx, rx) = mpsc::channel();
-    thread::spawn(move || loop {
-        let result = fetch_nearby(lat, lon);
-        if tx.send(result).is_err() {
-            break;
+    thread::spawn(move || {
+        loop {
+            let result = fetch_nearby(lat, lon);
+            if tx.send(result).is_err() {
+                break;
+            }
+            thread::sleep(REFRESH_INTERVAL);
         }
-        thread::sleep(REFRESH_INTERVAL);
     });
     rx
 }

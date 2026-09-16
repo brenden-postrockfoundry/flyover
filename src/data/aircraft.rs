@@ -32,15 +32,22 @@ impl<'de> Deserialize<'de> for Altitude {
 pub struct Aircraft {
     pub hex: String,
     pub flight: Option<String>,
+    // Kept for a future route (VRS Standing Data) or real-projection feature
+    // — see project-ideas.md — not read by anything yet.
+    #[allow(dead_code)]
     pub r: Option<String>,
+    #[allow(dead_code)]
     pub t: Option<String>,
     pub alt_baro: Option<Altitude>,
     pub gs: Option<f64>,
+    #[allow(dead_code)]
     pub track: Option<f64>,
     pub baro_rate: Option<f64>,
     pub geom_rate: Option<f64>,
     pub squawk: Option<String>,
+    #[allow(dead_code)]
     pub lat: Option<f64>,
+    #[allow(dead_code)]
     pub lon: Option<f64>,
     /// Distance from the query point in nautical miles, precomputed by adsb.lol.
     pub dst: Option<f64>,
@@ -58,7 +65,10 @@ impl Aircraft {
     }
 
     pub fn is_emergency_squawk(&self) -> bool {
-        matches!(self.squawk.as_deref(), Some("7500") | Some("7600") | Some("7700"))
+        matches!(
+            self.squawk.as_deref(),
+            Some("7500") | Some("7600") | Some("7700")
+        )
     }
 }
 

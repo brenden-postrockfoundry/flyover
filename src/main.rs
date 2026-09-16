@@ -27,7 +27,20 @@ fn run_preview(out_path: &str) -> std::io::Result<()> {
     let font = font::load_monospace().map_err(std::io::Error::other)?;
     let palette = ThemeWatcher::new().palette;
 
-    fn ac(hex: &str, flight: &str, alt_ft: i64, gs: f64, rate: f64, squawk: &str, dst: f64, dir: f64) -> Aircraft {
+    // A synthetic-fixture builder for this dev-only preview scene doesn't
+    // need the ergonomics a real API would; one extra arg over clippy's
+    // default threshold isn't worth a builder struct here.
+    #[allow(clippy::too_many_arguments)]
+    fn ac(
+        hex: &str,
+        flight: &str,
+        alt_ft: i64,
+        gs: f64,
+        rate: f64,
+        squawk: &str,
+        dst: f64,
+        dir: f64,
+    ) -> Aircraft {
         Aircraft {
             hex: hex.to_string(),
             flight: Some(flight.to_string()),
@@ -83,9 +96,7 @@ fn run_preview(out_path: &str) -> std::io::Result<()> {
         label_font_px: 18.0 * 0.85,
     };
     let image = raster::render(&scene);
-    image
-        .save(out_path)
-        .map_err(std::io::Error::other)?;
+    image.save(out_path).map_err(std::io::Error::other)?;
     println!("wrote {out_path}");
     Ok(())
 }
@@ -95,10 +106,10 @@ fn run_preview(out_path: &str) -> std::io::Result<()> {
 /// per-frame cost, since this environment can't be used to eyeball a live
 /// frame rate.
 fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
-    use ratatui_image::picker::Picker;
+    use ratatui::backend::TestBackend;
     use ratatui_image::FontSize;
+    use ratatui_image::picker::Picker;
 
     let font = font::load_monospace()?;
     let palette = ThemeWatcher::new().palette;
@@ -258,29 +269,27 @@ fn main() -> std::io::Result<()> {
     };
 
     loop {
-        if event::poll(Duration::from_millis(80))? {
-            if let Event::Key(key) = event::read()? {
-                // Letter keys reflect Caps Lock (crossterm reports the actual
-                // character produced, so 'q' becomes 'Q' with Caps Lock on) —
-                // lowercase before matching so shortcuts work regardless.
-                let code = match key.code {
-                    KeyCode::Char(c) => KeyCode::Char(c.to_ascii_lowercase()),
-                    other => other,
-                };
-                match code {
-                    KeyCode::Char('q') | KeyCode::Esc => break,
-                    KeyCode::Char('+') | KeyCode::Char('=') | KeyCode::Up => {
-                        zoom_radius_nm =
-                            (zoom_radius_nm - ZOOM_STEP_NM).max(scope::MIN_ZOOM_NM);
-                    }
-                    KeyCode::Char('-') | KeyCode::Char('_') | KeyCode::Down => {
-                        zoom_radius_nm =
-                            (zoom_radius_nm + ZOOM_STEP_NM).min(scope::MAX_ZOOM_NM);
-                    }
-                    KeyCode::Char('0') => zoom_radius_nm = DEFAULT_ZOOM_NM,
-                    KeyCode::Char('v') => render_mode = render_mode.toggled(),
-                    _ => {}
+        if event::poll(Duration::from_millis(80))?
+            && let Event::Key(key) = event::read()?
+        {
+            // Letter keys reflect Caps Lock (crossterm reports the actual
+            // character produced, so 'q' becomes 'Q' with Caps Lock on) —
+            // lowercase before matching so shortcuts work regardless.
+            let code = match key.code {
+                KeyCode::Char(c) => KeyCode::Char(c.to_ascii_lowercase()),
+                other => other,
+            };
+            match code {
+                KeyCode::Char('q') | KeyCode::Esc => break,
+                KeyCode::Char('+') | KeyCode::Char('=') | KeyCode::Up => {
+                    zoom_radius_nm = (zoom_radius_nm - ZOOM_STEP_NM).max(scope::MIN_ZOOM_NM);
                 }
+                KeyCode::Char('-') | KeyCode::Char('_') | KeyCode::Down => {
+                    zoom_radius_nm = (zoom_radius_nm + ZOOM_STEP_NM).min(scope::MAX_ZOOM_NM);
+                }
+                KeyCode::Char('0') => zoom_radius_nm = DEFAULT_ZOOM_NM,
+                KeyCode::Char('v') => render_mode = render_mode.toggled(),
+                _ => {}
             }
         }
 

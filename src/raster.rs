@@ -4,7 +4,9 @@ use crate::theme::Palette;
 use crate::trail::TrailStore;
 use image::RgbaImage;
 use ratatui::style::Color;
-use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Shader, Stroke, Transform};
+use tiny_skia::{
+    FillRule, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Shader, Stroke, Transform,
+};
 
 const RING_COUNT: u32 = 4;
 const LABEL_ROWS: usize = 3;
@@ -303,7 +305,15 @@ fn draw_text(
         let (metrics, bitmap) = font.rasterize(ch, font_px);
         let glyph_x = pen_x + metrics.xmin as f32;
         let glyph_y = y - metrics.ymin as f32 - metrics.height as f32;
-        blit_glyph(pixmap, &bitmap, metrics.width, metrics.height, glyph_x, glyph_y, (r, g, b));
+        blit_glyph(
+            pixmap,
+            &bitmap,
+            metrics.width,
+            metrics.height,
+            glyph_x,
+            glyph_y,
+            (r, g, b),
+        );
         pen_x += metrics.advance_width;
     }
 }
@@ -366,7 +376,12 @@ fn pixmap_to_image(pixmap: Pixmap) -> RgbaImage {
         out.put_pixel(
             x,
             y,
-            image::Rgba([straight.red(), straight.green(), straight.blue(), px.alpha()]),
+            image::Rgba([
+                straight.red(),
+                straight.green(),
+                straight.blue(),
+                px.alpha(),
+            ]),
         );
     }
     out

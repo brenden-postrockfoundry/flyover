@@ -62,11 +62,31 @@ fn load_palette(path: &Path) -> Palette {
         return fallback;
     };
     Palette {
-        background: raw.background.as_deref().and_then(parse_hex).unwrap_or(fallback.background),
-        foreground: raw.foreground.as_deref().and_then(parse_hex).unwrap_or(fallback.foreground),
-        accent: raw.accent.as_deref().and_then(parse_hex).unwrap_or(fallback.accent),
-        muted: raw.muted.as_deref().and_then(parse_hex).unwrap_or(fallback.muted),
-        alert: raw.red.as_deref().and_then(parse_hex).unwrap_or(fallback.alert),
+        background: raw
+            .background
+            .as_deref()
+            .and_then(parse_hex)
+            .unwrap_or(fallback.background),
+        foreground: raw
+            .foreground
+            .as_deref()
+            .and_then(parse_hex)
+            .unwrap_or(fallback.foreground),
+        accent: raw
+            .accent
+            .as_deref()
+            .and_then(parse_hex)
+            .unwrap_or(fallback.accent),
+        muted: raw
+            .muted
+            .as_deref()
+            .and_then(parse_hex)
+            .unwrap_or(fallback.muted),
+        alert: raw
+            .red
+            .as_deref()
+            .and_then(parse_hex)
+            .unwrap_or(fallback.alert),
     }
 }
 

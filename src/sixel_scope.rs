@@ -2,10 +2,10 @@ use crate::data::aircraft::Aircraft;
 use crate::raster::{self, Scene};
 use crate::theme::Palette;
 use crate::trail::TrailStore;
-use ratatui::layout::Rect;
 use ratatui::Frame;
-use ratatui_image::picker::Picker;
+use ratatui::layout::Rect;
 use ratatui_image::StatefulImage;
+use ratatui_image::picker::Picker;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(

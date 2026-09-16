@@ -2,12 +2,12 @@ use crate::data::aircraft::{Aircraft, Altitude};
 use crate::geometry::bearing_to_xy;
 use crate::theme::Palette;
 use crate::trail::TrailStore;
+use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::Line as TextLine;
 use ratatui::widgets::canvas::{Canvas, Circle, Line as CanvasLine, Points};
-use ratatui::Frame;
 
 const RING_COUNT: u32 = 4;
 const LABEL_ROWS: usize = 3;
@@ -161,12 +161,8 @@ pub fn render(
                     format!("{:.0}kt", ac.gs.unwrap_or(0.0)),
                 ];
 
-                let width_nm = lines
-                    .iter()
-                    .map(|l| l.chars().count())
-                    .max()
-                    .unwrap_or(0) as f64
-                    * nm_per_col;
+                let width_nm =
+                    lines.iter().map(|l| l.chars().count()).max().unwrap_or(0) as f64 * nm_per_col;
                 let height_nm = LABEL_ROWS as f64 * nm_per_row;
 
                 let candidates = [
@@ -198,7 +194,10 @@ pub fn render(
                 // near the edge of the visible range — sliding it back in
                 // reads much better than letting text run off the canvas
                 // and get clipped. Only the label moves; the blip stays put.
-                chosen.0 = chosen.0.max(-x_reach).min((x_reach - width_nm).max(-x_reach));
+                chosen.0 = chosen
+                    .0
+                    .max(-x_reach)
+                    .min((x_reach - width_nm).max(-x_reach));
                 chosen.1 = chosen
                     .1
                     .max((-zoom_radius_nm + height_nm).min(zoom_radius_nm))

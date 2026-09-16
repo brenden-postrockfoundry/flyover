@@ -3,10 +3,10 @@ use crate::geometry::sweep_angle_deg;
 use crate::theme::Palette;
 use crate::trail::TrailStore;
 use crate::{braille_scope, sixel_scope};
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 use ratatui_image::picker::Picker;
 use std::time::Instant;
 
