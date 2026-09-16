@@ -11,7 +11,7 @@ import "Model.js" as Model
 // that all lives in the flyover binary (~/flight-radar).
 BarWidget {
   id: root
-  moduleName: "bren.flight-radar-pill"
+  moduleName: "bren.flyover"
 
   readonly property string weatherLocationPath: Quickshell.env("HOME") + "/.local/state/omarchy/settings/weather.json"
   readonly property string scopeAppId: "flyover-scope"
