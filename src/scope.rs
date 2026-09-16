@@ -12,7 +12,10 @@ use std::time::{Duration, Instant};
 
 pub const MIN_ZOOM_NM: f64 = 5.0;
 pub const MAX_ZOOM_NM: f64 = 100.0;
-const SWEEP_PERIOD: Duration = Duration::from_secs(4);
+// Slower than a real radar sweep on purpose: at this render loop's actual
+// frame rate, a smaller angular step per frame reads as smoother than a fast
+// rotation would, even though the frame rate itself hasn't changed.
+const SWEEP_PERIOD: Duration = Duration::from_secs(20);
 const CONTROLS: &str = "q   +/-   0";
 
 fn sweep_angle_deg(sweep_start: Instant) -> f64 {
