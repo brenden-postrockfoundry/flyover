@@ -37,7 +37,7 @@ Press `v` any time to switch between them.
 ## Build
 
 ```
-git clone https://github.com/brenden-postrockfoundry/flyover.git
+git clone https://github.com/linuxbren/flyover.git
 cd flyover
 cargo build --release
 ```
@@ -75,11 +75,11 @@ cargo run --release
 
 A companion widget — an ambient aircraft-count pill for the bar that
 launches (or focuses) the scope on click — lives in its own repo,
-[flyover-pill](https://github.com/brenden-postrockfoundry/flyover-pill), so it installs the
+[flyover-pill](https://github.com/linuxbren/flyover-pill), so it installs the
 normal Omarchy way:
 
 ```
-omarchy plugin add https://github.com/brenden-postrockfoundry/flyover-pill.git --enable
+omarchy plugin add https://github.com/linuxbren/flyover-pill.git --enable
 omarchy bar put bren.flyover --section right
 ```
 
