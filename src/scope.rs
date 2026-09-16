@@ -16,7 +16,7 @@ pub const MAX_ZOOM_NM: f64 = 100.0;
 const SWEEP_PERIOD: Duration = Duration::from_secs(4);
 const RING_COUNT: u32 = 4;
 const LABEL_ROWS: usize = 3;
-const CONTROLS: &str = "q quit   +/- zoom   0 reset";
+const CONTROLS: &str = "q   +/-   0";
 
 fn sweep_angle_deg(sweep_start: Instant) -> f64 {
     let elapsed = sweep_start.elapsed().as_secs_f64();
