@@ -1,27 +1,37 @@
 use crate::data::aircraft::Aircraft;
-use crate::raster::{self, Scene};
+use crate::geometry::sweep_angle_deg;
 use crate::theme::Palette;
 use crate::trail::TrailStore;
+use crate::{braille_scope, sixel_scope};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 use ratatui_image::picker::Picker;
-use ratatui_image::StatefulImage;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 pub const MIN_ZOOM_NM: f64 = 5.0;
 pub const MAX_ZOOM_NM: f64 = 100.0;
-// Slower than a real radar sweep on purpose: at this render loop's actual
-// frame rate, a smaller angular step per frame reads as smoother than a fast
-// rotation would, even though the frame rate itself hasn't changed.
-const SWEEP_PERIOD: Duration = Duration::from_secs(40);
-const CONTROLS: &str = "q   +/-   0";
+const CONTROLS: &str = "q   +/-   0   v";
 
-fn sweep_angle_deg(sweep_start: Instant) -> f64 {
-    let elapsed = sweep_start.elapsed().as_secs_f64();
-    let period = SWEEP_PERIOD.as_secs_f64();
-    (elapsed / period * 360.0) % 360.0
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenderMode {
+    /// Anti-aliased CRT-glow graphics via an off-screen rasterizer + Sixel.
+    /// Better looking, but real-world per-frame cost (mostly the terminal's
+    /// own Sixel decode, not this app) can make animation less smooth.
+    Sixel,
+    /// The original braille-Canvas renderer: character-based, no image
+    /// encoding, so it's inherently fast and animates smoothly.
+    Braille,
+}
+
+impl RenderMode {
+    pub fn toggled(self) -> Self {
+        match self {
+            RenderMode::Sixel => RenderMode::Braille,
+            RenderMode::Braille => RenderMode::Sixel,
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -37,6 +47,7 @@ pub fn render(
     palette: &Palette,
     picker: &Picker,
     font: &fontdue::Font,
+    mode: RenderMode,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -65,25 +76,27 @@ pub fn render(
         return;
     }
 
-    let font_size = picker.font_size();
-    let width_px = u32::from(inner.width) * u32::from(font_size.width);
-    let height_px = u32::from(inner.height) * u32::from(font_size.height);
-    // Match the terminal's own text size instead of an arbitrary constant,
-    // per feedback that the labels read smaller than the surrounding UI.
-    let label_font_px = f32::from(font_size.height) * 0.85;
-
-    let scene = Scene {
-        width_px,
-        height_px,
-        aircraft,
-        trails,
-        zoom_radius_nm,
-        label_font_px,
-        sweep_angle_deg: sweep_angle_deg(sweep_start),
-        palette,
-        font,
-    };
-    let image = raster::render(&scene);
-    let mut protocol = picker.new_resize_protocol(image::DynamicImage::ImageRgba8(image));
-    frame.render_stateful_widget(StatefulImage::new(), inner, &mut protocol);
+    let angle = sweep_angle_deg(sweep_start);
+    match mode {
+        RenderMode::Sixel => sixel_scope::render(
+            frame,
+            inner,
+            aircraft,
+            trails,
+            zoom_radius_nm,
+            angle,
+            palette,
+            picker,
+            font,
+        ),
+        RenderMode::Braille => braille_scope::render(
+            frame,
+            inner,
+            aircraft,
+            trails,
+            zoom_radius_nm,
+            angle,
+            palette,
+        ),
+    }
 }

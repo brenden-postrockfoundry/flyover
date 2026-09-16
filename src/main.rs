@@ -1,8 +1,10 @@
+mod braille_scope;
 mod data;
 mod font;
 mod geometry;
 mod raster;
 mod scope;
+mod sixel_scope;
 mod theme;
 mod trail;
 mod tui;
@@ -154,6 +156,7 @@ fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
                 &palette,
                 &picker,
                 &font,
+                scope::RenderMode::Sixel,
             );
         })?;
         draw_total += t1.elapsed();
@@ -161,12 +164,35 @@ fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!(
-        "raster::render: {:.1}ms/frame avg",
-        raster_total.as_secs_f64() * 1000.0 / f64::from(N)
-    );
-    println!(
-        "full terminal.draw (incl. Sixel encode): {:.1}ms/frame avg",
+        "sixel: raster::render {:.1}ms/frame, full terminal.draw {:.1}ms/frame",
+        raster_total.as_secs_f64() * 1000.0 / f64::from(N),
         draw_total.as_secs_f64() * 1000.0 / f64::from(N)
+    );
+
+    let mut braille_total = Duration::ZERO;
+    for _ in 0..N {
+        let t0 = Instant::now();
+        terminal.draw(|frame| {
+            scope::render(
+                frame,
+                frame.area(),
+                "bench".to_string(),
+                "".to_string(),
+                &aircraft,
+                &trails,
+                40.0,
+                sweep_start,
+                &palette,
+                &picker,
+                &font,
+                scope::RenderMode::Braille,
+            );
+        })?;
+        braille_total += t0.elapsed();
+    }
+    println!(
+        "braille: full terminal.draw {:.1}ms/frame",
+        braille_total.as_secs_f64() * 1000.0 / f64::from(N)
     );
     Ok(())
 }
@@ -208,6 +234,7 @@ fn main() -> std::io::Result<()> {
     let mut last_error: Option<String> = None;
     let mut last_update: Option<Instant> = None;
     let mut zoom_radius_nm: f64 = DEFAULT_ZOOM_NM;
+    let mut render_mode = scope::RenderMode::Sixel;
     let sweep_start = Instant::now();
     let mut last_frame_ms: u128 = 0;
     let mut theme = ThemeWatcher::new();
@@ -244,6 +271,7 @@ fn main() -> std::io::Result<()> {
                             (zoom_radius_nm + ZOOM_STEP_NM).min(scope::MAX_ZOOM_NM);
                     }
                     KeyCode::Char('0') => zoom_radius_nm = DEFAULT_ZOOM_NM,
+                    KeyCode::Char('v') => render_mode = render_mode.toggled(),
                     _ => {}
                 }
             }
@@ -292,6 +320,7 @@ fn main() -> std::io::Result<()> {
                 &theme.palette,
                 &picker,
                 &font,
+                render_mode,
             );
         })?;
         last_frame_ms = frame_start.elapsed().as_millis();
