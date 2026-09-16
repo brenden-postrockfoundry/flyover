@@ -85,8 +85,20 @@ BarWidget {
     onTriggered: root.refresh()
   }
 
+  // TEMPORARY diagnostic: flashes the pill's own background so a click can
+  // be confirmed (or ruled out) by eye, without checking logs. Remove once
+  // the click issue is resolved.
+  property bool justPressed: false
+  Timer {
+    id: flashTimer
+    interval: 500
+    onTriggered: root.justPressed = false
+  }
+
   function openScope() {
     console.log("bren.flyover: openScope() pressed")
+    root.justPressed = true
+    flashTimer.restart()
     launchProc.running = true
   }
 
@@ -102,6 +114,16 @@ BarWidget {
     onExited: function(exitCode) {
       console.log("bren.flyover: scope process exited with code " + exitCode)
     }
+  }
+
+  // TEMPORARY diagnostic: makes the widget's real occupied bounds visible
+  // (red normally, green for half a second right after a registered click),
+  // separate from wherever the text happens to render. Remove once the
+  // click issue is resolved.
+  Rectangle {
+    anchors.fill: parent
+    color: root.justPressed ? "lime" : "red"
+    opacity: 0.35
   }
 
   WidgetButton {
