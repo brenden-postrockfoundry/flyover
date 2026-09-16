@@ -6,9 +6,19 @@ import qs.Ui
 import "Model.js" as Model
 
 // Ambient "aircraft nearby" count for the bar. Click launches the flyover
-// TUI scope in a new terminal, or focuses it if one is already running.
-// Deliberately thin: this widget owns no scope-drawing logic of its own —
-// that all lives in the flyover binary (~/flight-radar).
+// TUI scope in a new terminal. Deliberately thin: this widget owns no
+// scope-drawing logic of its own — that all lives in the flyover binary
+// (~/flight-radar).
+//
+// No hyprctl/focus-existing-window logic: this Hyprland build replaced the
+// classic string dispatchers (`hyprctl dispatch focuswindow class:...`) with
+// a Lua-table API (hl.dsp.window.*) that doesn't obviously expose "focus by
+// class" the same way, and getting that exactly right needs more digging
+// than this widget is worth blocking on. launchProc.running doubles as a
+// crude de-dupe instead: Quickshell won't restart a Process that's already
+// running, so clicking again while the scope is still open is a no-op
+// rather than a second window — not as good as true focus-by-class, but
+// correct and simple.
 BarWidget {
   id: root
   moduleName: "bren.flyover"
@@ -76,27 +86,17 @@ BarWidget {
     launchProc.running = true
   }
 
-  // No IPC with the scope app in v1 (see project-ideas.md) — this just
-  // focuses an existing window by app-id, or launches a new one. Absolute
-  // paths throughout since Quickshell's Process doesn't necessarily inherit
-  // an interactive-shell PATH.
+  // Direct argv invocation — no shell involved, so no quoting to get wrong.
+  // Absolute path since Quickshell's Process isn't guaranteed to inherit an
+  // interactive shell's PATH.
   Process {
     id: launchProc
-    command: ["/usr/bin/bash", "-c",
-      "if /usr/bin/hyprctl clients -j | /usr/bin/jq -e '.[] | select(.class == \"" + root.scopeAppId + "\")' >/dev/null 2>&1; then " +
-      "/usr/bin/hyprctl dispatch focuswindow 'class:^(" + root.scopeAppId + ")$'; " +
-      "else " +
-      "/usr/bin/foot -a " + root.scopeAppId + " -T flyover -H -D '" + root.scopeDir + "' '" + root.scopeBinary + "' & disown; " +
-      "fi"
-    ]
-    stdout: StdioCollector {
-      onStreamFinished: if (text) console.log("bren.flyover launch stdout: " + text)
-    }
+    command: ["/usr/bin/foot", "-a", root.scopeAppId, "-T", "flyover", "-H", "-D", root.scopeDir, root.scopeBinary]
     stderr: StdioCollector {
       onStreamFinished: if (text) console.warn("bren.flyover launch stderr: " + text)
     }
     onExited: function(exitCode) {
-      console.log("bren.flyover: launchProc exited with code " + exitCode)
+      console.log("bren.flyover: scope process exited with code " + exitCode)
     }
   }
 
