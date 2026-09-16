@@ -5,6 +5,7 @@ edition = "2024"
 description = "A real-time ADS-B radar scope for your terminal, built for Omarchy"
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/linuxbren/flyover"
 keywords = ["adsb", "radar", "tui", "omarchy", "aviation"]
 categories = ["command-line-utilities", "visualization"]
 
