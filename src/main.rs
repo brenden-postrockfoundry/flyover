@@ -309,7 +309,10 @@ fn main() -> std::io::Result<()> {
         );
         let status = match (last_update, &last_error) {
             (_, Some(_)) => "err".to_string(),
-            (Some(t), None) => format!("↻{}s", t.elapsed().as_secs()),
+            (Some(t), None) => {
+                let remaining = data::fetch::REFRESH_INTERVAL.saturating_sub(t.elapsed());
+                format!("↻{}s", remaining.as_secs())
+            }
             (None, None) => "…".to_string(),
         };
 
