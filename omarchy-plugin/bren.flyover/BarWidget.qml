@@ -34,8 +34,8 @@ BarWidget {
 
   property int aircraftCount: -1
   readonly property string displayText: !hasLocation
-    ? "AC ?"
-    : (aircraftCount < 0 ? "AC .." : ("AC " + aircraftCount))
+    ? "✈ ?"
+    : (aircraftCount < 0 ? "✈ …" : ("✈ " + aircraftCount))
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
