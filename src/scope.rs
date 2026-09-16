@@ -1,12 +1,12 @@
 use crate::data::aircraft::{Aircraft, Altitude};
 use crate::geometry::bearing_to_xy;
 use crate::trail::TrailStore;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
 use ratatui::symbols::Marker;
 use ratatui::text::Line as TextLine;
 use ratatui::widgets::canvas::{Canvas, Circle, Line as CanvasLine, Points};
-use ratatui::widgets::{Block, Borders};
+use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Frame;
 use std::time::{Duration, Instant};
 
@@ -15,6 +15,7 @@ pub const MAX_ZOOM_NM: f64 = 100.0;
 const SWEEP_PERIOD: Duration = Duration::from_secs(4);
 const RING_COUNT: u32 = 4;
 const LABEL_ROWS: usize = 3;
+const CONTROLS: &str = "q quit   +/- zoom   0 reset";
 
 fn sweep_angle_deg(sweep_start: Instant) -> f64 {
     let elapsed = sweep_start.elapsed().as_secs_f64();
@@ -47,11 +48,31 @@ pub fn render(
     frame: &mut Frame,
     area: Rect,
     title: String,
+    status: String,
     aircraft: &[Aircraft],
     trails: &TrailStore,
     zoom_radius_nm: f64,
     sweep_start: Instant,
 ) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Length(1)])
+        .split(area);
+    let scope_area = chunks[0];
+    let footer_area = chunks[1];
+
+    let footer_text = if footer_area.width as usize >= CONTROLS.len() + status.len() + 3 {
+        format!("{CONTROLS}   {status}")
+    } else {
+        CONTROLS.to_string()
+    };
+    frame.render_widget(
+        Paragraph::new(footer_text).style(Style::default().fg(Color::DarkGray)),
+        footer_area,
+    );
+
+    let area = scope_area;
+
     // Terminal cells are roughly twice as tall as they are wide, so without
     // this correction the range rings render as ellipses, not circles.
     let aspect = if area.height > 0 {

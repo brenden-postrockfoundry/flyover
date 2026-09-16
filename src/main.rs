@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use trail::TrailStore;
 
 const ZOOM_STEP_NM: f64 = 5.0;
+const DEFAULT_ZOOM_NM: f64 = 40.0;
 
 fn main() -> std::io::Result<()> {
     let location = match data::location::load() {
@@ -25,7 +26,7 @@ fn main() -> std::io::Result<()> {
     let mut trails = TrailStore::default();
     let mut last_error: Option<String> = None;
     let mut last_update: Option<Instant> = None;
-    let mut zoom_radius_nm: f64 = 40.0;
+    let mut zoom_radius_nm: f64 = DEFAULT_ZOOM_NM;
     let sweep_start = Instant::now();
 
     let mut terminal = tui::init()?;
@@ -43,6 +44,7 @@ fn main() -> std::io::Result<()> {
                         zoom_radius_nm =
                             (zoom_radius_nm + ZOOM_STEP_NM).min(scope::MAX_ZOOM_NM);
                     }
+                    KeyCode::Char('0') => zoom_radius_nm = DEFAULT_ZOOM_NM,
                     _ => {}
                 }
             }
@@ -60,16 +62,16 @@ fn main() -> std::io::Result<()> {
             }
         }
 
-        let title = match (last_update, &last_error) {
-            (_, Some(err)) => format!(" flyover — {} — error: {err} ", location.name),
-            (Some(t), None) => format!(
-                " flyover — {} — updated {}s ago — {} contact(s) — {:.0}nm range — +/- zoom, q to quit ",
-                location.name,
-                t.elapsed().as_secs(),
-                aircraft.len(),
-                zoom_radius_nm
-            ),
-            (None, None) => format!(" flyover — {} — waiting for first update... ", location.name),
+        let title = format!(
+            " flyover — {} — {} contact(s) — {:.0}nm range ",
+            location.name,
+            aircraft.len(),
+            zoom_radius_nm
+        );
+        let status = match (last_update, &last_error) {
+            (_, Some(err)) => format!("error: {err}"),
+            (Some(t), None) => format!("updated {}s ago", t.elapsed().as_secs()),
+            (None, None) => "waiting for first update...".to_string(),
         };
 
         terminal.draw(|frame| {
@@ -77,6 +79,7 @@ fn main() -> std::io::Result<()> {
                 frame,
                 frame.area(),
                 title,
+                status,
                 &aircraft,
                 &trails,
                 zoom_radius_nm,
