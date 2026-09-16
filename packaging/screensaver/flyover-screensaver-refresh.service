@@ -1,0 +1,6 @@
+[Unit]
+Description=Refresh the flyover screensaver snapshot while idle
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/flyover-screensaver-refresh

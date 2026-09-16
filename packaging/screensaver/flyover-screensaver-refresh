@@ -1,0 +1,19 @@
+#!/bin/bash
+# Regenerates Omarchy's screensaver ASCII snapshot from flyover -- but only
+# while the screensaver is actually active. Checked via the real Omarchy
+# idle-service IPC (`omarchy-shell idle status`), not our own idle-detection
+# guesswork, so this stays a no-op (no network fetch, no adsb.lol hit)
+# during normal use. Meant to be run periodically by the accompanying
+# systemd user timer.
+set -euo pipefail
+
+active=$(omarchy-shell idle status 2>/dev/null | jq -r '.screensaverStarted // false')
+[[ $active == "true" ]] || exit 0
+
+binary=$(command -v flyover || true)
+if [[ -z $binary ]]; then
+  binary="$HOME/flyover/target/release/flyover"
+fi
+[[ -x $binary ]] || exit 0
+
+exec "$binary" --ascii-snapshot "$HOME/.config/omarchy/branding/screensaver.txt"
