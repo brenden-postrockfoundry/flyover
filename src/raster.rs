@@ -107,7 +107,7 @@ fn draw_sweep(pixmap: &mut Pixmap, cx: f32, cy: f32, radius_px: f32, angle_deg: 
     let ey = cy - radius_px * rad.cos() as f32;
 
     // Layered strokes, wide+dim to narrow+bright, simulate a phosphor glow.
-    const LAYERS: [(f32, u8); 4] = [(9.0, 25), (6.0, 45), (3.0, 90), (1.2, 220)];
+    const LAYERS: [(f32, u8); 3] = [(8.0, 30), (3.5, 90), (1.2, 220)];
     for (width, alpha) in LAYERS {
         let mut pb = PathBuilder::new();
         pb.move_to(cx, cy);
@@ -183,8 +183,7 @@ fn draw_contacts(
         };
 
         // Soft glow halo behind a bright core dot.
-        fill_circle(pixmap, px, py, 5.0, to_skia(base, 35));
-        fill_circle(pixmap, px, py, 2.6, to_skia(base, 120));
+        fill_circle(pixmap, px, py, 4.5, to_skia(base, 45));
         fill_circle(pixmap, px, py, 1.4, to_skia(base, 255));
 
         let climb = match ac.climb_rate() {

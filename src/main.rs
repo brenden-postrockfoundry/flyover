@@ -102,10 +102,10 @@ fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
     let trails = TrailStore::default();
     let aircraft: Vec<Aircraft> = Vec::new();
 
-    // Representative of a real window: ~80 cols x 30 rows at a typical
+    // Representative of a bigger tiled window: ~160 cols x 50 rows at a typical
     // JetBrainsMono cell size.
-    let cols = 80u16;
-    let rows = 30u16;
+    let cols = 160u16;
+    let rows = 50u16;
     #[allow(deprecated)]
     let mut picker = Picker::from_fontsize(FontSize {
         width: 9,
