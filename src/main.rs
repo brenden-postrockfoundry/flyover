@@ -1,3 +1,4 @@
+mod ascii_snapshot;
 mod braille_scope;
 mod data;
 mod font;
@@ -209,6 +210,24 @@ fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// `flyover --ascii-snapshot [path]`: one-shot fetch + plain-ASCII render of
+/// the current scope, written to `path` (default: ./screensaver.txt in the
+/// cwd — deliberately not Omarchy's real branding path, so this never
+/// silently overwrites it; point it there explicitly once you're ready).
+/// No color, no trails, no sweep animation: color gets discarded by ttfx's
+/// own per-effect recoloring regardless, and a one-shot process has no
+/// history to fade a trail from or state to animate a sweep across — the
+/// "motion" is entirely ttfx's job on whatever frame we hand it.
+fn run_ascii_snapshot(out_path: &str) -> std::io::Result<()> {
+    let location = data::location::load().map_err(std::io::Error::other)?;
+    let aircraft = data::fetch::fetch_nearby(location.latitude, location.longitude)
+        .map_err(std::io::Error::other)?;
+    let text = ascii_snapshot::render(70, 35, &aircraft, 40.0);
+    std::fs::write(out_path, text)?;
+    println!("wrote {out_path}");
+    Ok(())
+}
+
 fn main() -> std::io::Result<()> {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
@@ -218,6 +237,10 @@ fn main() -> std::io::Result<()> {
         }
         Some("--bench") => {
             return run_bench().map_err(|e| std::io::Error::other(e.to_string()));
+        }
+        Some("--ascii-snapshot") => {
+            let out_path = args.next().unwrap_or_else(|| "screensaver.txt".to_string());
+            return run_ascii_snapshot(&out_path);
         }
         _ => {}
     }

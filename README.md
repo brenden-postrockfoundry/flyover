@@ -100,6 +100,21 @@ It resolves the `flyover` binary via `PATH` first, falling back to
 `$HOME/flyover/target/release/flyover` — so it works whether you've
 `cargo install`ed it or just built it in place.
 
+## Screensaver (experimental)
+
+Omarchy's built-in screensaver already animates the plain text in
+`~/.config/omarchy/branding/screensaver.txt` (via `ttfx`, re-reading the
+file fresh each effect cycle) — so `flyover --ascii-snapshot [path]` renders
+one static plain-ASCII frame of the current scope (rings, contacts, data
+tags; no color or trails, since `ttfx` recolors per-effect regardless and a
+one-shot process has no history to fade from) to that file, or wherever you
+point it. Wire it to a timer of your choosing and Omarchy's own screensaver
+does the rest:
+
+```
+flyover --ascii-snapshot ~/.config/omarchy/branding/screensaver.txt
+```
+
 ## Dev tools
 
 - `flyover --preview <path>.png` — renders a synthetic scene straight to a
