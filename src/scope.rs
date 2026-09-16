@@ -1,5 +1,6 @@
 use crate::data::aircraft::{Aircraft, Altitude};
 use crate::geometry::bearing_to_xy;
+use crate::theme::Palette;
 use crate::trail::TrailStore;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Style};
@@ -23,11 +24,19 @@ fn sweep_angle_deg(sweep_start: Instant) -> f64 {
     (elapsed / period * 360.0) % 360.0
 }
 
-/// Fades from a dim tail color (t=0, oldest) toward bright green (t close to
-/// 1) without ever reaching the full brightness reserved for the live blip.
-fn trail_color(t: f64) -> Color {
-    let g = (40.0 + t.clamp(0.0, 1.0) * 175.0).round() as u8;
-    Color::Rgb(0, g, 0)
+/// Fades a theme color from black (t=0, oldest) up toward its full
+/// brightness (t close to 1), without ever reaching the full brightness
+/// reserved for the live blip itself.
+fn faded(base: Color, t: f64) -> Color {
+    let Color::Rgb(r, g, b) = base else {
+        return base;
+    };
+    let t = t.clamp(0.0, 1.0) * 0.8 + 0.1;
+    Color::Rgb(
+        (f64::from(r) * t) as u8,
+        (f64::from(g) * t) as u8,
+        (f64::from(b) * t) as u8,
+    )
 }
 
 /// Axis-aligned box anchored at its top-left corner (x, y), extending right
@@ -53,6 +62,7 @@ pub fn render(
     trails: &TrailStore,
     zoom_radius_nm: f64,
     sweep_start: Instant,
+    palette: &Palette,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -67,7 +77,7 @@ pub fn render(
         CONTROLS.to_string()
     };
     frame.render_widget(
-        Paragraph::new(footer_text).style(Style::default().fg(Color::DarkGray)),
+        Paragraph::new(footer_text).style(Style::default().fg(palette.muted)),
         footer_area,
     );
 
@@ -102,8 +112,11 @@ pub fn render(
     // frames as aircraft positions shift by tiny amounts.
     contacts.sort_by(|a, b| a.hex.cmp(&b.hex));
 
+    let palette = *palette;
+
     let canvas = Canvas::default()
         .block(Block::default().borders(Borders::ALL).title(title))
+        .background_color(palette.background)
         .marker(Marker::Braille)
         .x_bounds([-x_reach, x_reach])
         .y_bounds([-zoom_radius_nm, zoom_radius_nm])
@@ -114,7 +127,7 @@ pub fn render(
                     x: 0.0,
                     y: 0.0,
                     radius: zoom_radius_nm * frac,
-                    color: Color::DarkGray,
+                    color: palette.muted,
                 });
             }
 
@@ -123,17 +136,22 @@ pub fn render(
                 y1: 0.0,
                 x2: sweep_x,
                 y2: sweep_y,
-                color: Color::Green,
+                color: palette.accent,
             });
 
             for ac in &contacts {
                 if let Some(trail) = trails.get(&ac.hex) {
                     let len = trail.len();
+                    let base = if ac.is_emergency_squawk() {
+                        palette.alert
+                    } else {
+                        palette.foreground
+                    };
                     for (i, (tx, ty)) in trail.iter().enumerate() {
                         let t = (i + 1) as f64 / (len + 1) as f64;
                         ctx.draw(&Points {
                             coords: &[(*tx, *ty)],
-                            color: trail_color(t),
+                            color: faded(base, t),
                         });
                     }
                 }
@@ -148,9 +166,9 @@ pub fn render(
                 };
                 let (x, y) = bearing_to_xy(dst, dir);
                 let color = if ac.is_emergency_squawk() {
-                    Color::Red
+                    palette.alert
                 } else {
-                    Color::Green
+                    palette.foreground
                 };
 
                 ctx.draw(&Points {

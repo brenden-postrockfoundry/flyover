@@ -1,16 +1,19 @@
 mod data;
 mod geometry;
 mod scope;
+mod theme;
 mod trail;
 mod tui;
 
 use crossterm::event::{self, Event, KeyCode};
 use data::aircraft::Aircraft;
 use std::time::{Duration, Instant};
+use theme::ThemeWatcher;
 use trail::TrailStore;
 
 const ZOOM_STEP_NM: f64 = 5.0;
 const DEFAULT_ZOOM_NM: f64 = 40.0;
+const THEME_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 fn main() -> std::io::Result<()> {
     let location = match data::location::load() {
@@ -28,6 +31,8 @@ fn main() -> std::io::Result<()> {
     let mut last_update: Option<Instant> = None;
     let mut zoom_radius_nm: f64 = DEFAULT_ZOOM_NM;
     let sweep_start = Instant::now();
+    let mut theme = ThemeWatcher::new();
+    let mut last_theme_check = Instant::now();
 
     let mut terminal = tui::init()?;
 
@@ -48,6 +53,11 @@ fn main() -> std::io::Result<()> {
                     _ => {}
                 }
             }
+        }
+
+        if last_theme_check.elapsed() >= THEME_POLL_INTERVAL {
+            theme.poll();
+            last_theme_check = Instant::now();
         }
 
         while let Ok(result) = rx.try_recv() {
@@ -84,6 +94,7 @@ fn main() -> std::io::Result<()> {
                 &trails,
                 zoom_radius_nm,
                 sweep_start,
+                &theme.palette,
             );
         })?;
     }
