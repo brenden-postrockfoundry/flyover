@@ -71,13 +71,15 @@ pub fn render(
     let scope_area = chunks[0];
     let footer_area = chunks[1];
 
-    let footer_text = if footer_area.width as usize >= CONTROLS.len() + status.len() + 3 {
-        format!("{CONTROLS}   {status}")
+    let footer_text = if footer_area.width as usize >= CONTROLS.len() + status.len() + 4 {
+        format!("{CONTROLS}   {status} ")
     } else {
-        CONTROLS.to_string()
+        format!("{CONTROLS} ")
     };
     frame.render_widget(
-        Paragraph::new(footer_text).style(Style::default().fg(palette.muted)),
+        Paragraph::new(footer_text)
+            .style(Style::default().fg(palette.muted))
+            .alignment(ratatui::layout::Alignment::Right),
         footer_area,
     );
 

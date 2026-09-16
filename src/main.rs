@@ -79,9 +79,9 @@ fn main() -> std::io::Result<()> {
             zoom_radius_nm
         );
         let status = match (last_update, &last_error) {
-            (_, Some(err)) => format!("error: {err}"),
-            (Some(t), None) => format!("updated {}s ago", t.elapsed().as_secs()),
-            (None, None) => "waiting for first update...".to_string(),
+            (_, Some(_)) => "err".to_string(),
+            (Some(t), None) => format!("↻{}s", t.elapsed().as_secs()),
+            (None, None) => "…".to_string(),
         };
 
         terminal.draw(|frame| {
