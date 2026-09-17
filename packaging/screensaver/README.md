@@ -52,3 +52,34 @@ pgrep -af 'flyover --screensaver'
 ```
 sudo bash restore-omarchy-screensaver.sh
 ```
+
+## Menu integration (optional)
+
+Omarchy has no pluggable "choose a screensaver" list — it's this one
+mechanism, with a `omarchy branding screensaver <image|text|reset>`
+command that lets you customize the branding content (pick an image,
+edit the text, or reset to the default logo). `patch-omarchy-branding-screensaver.sh`
+repurposes that same command as an enable/disable switch for the flyover
+screensaver instead:
+
+- `text` — enables it (runs `patch-omarchy-screensaver.sh` above)
+- `reset` — disables it and resets the branding content to the default logo
+- `image` — untouched
+
+```
+sudo bash patch-omarchy-branding-screensaver.sh
+```
+
+Same idempotent/backup/revert pattern as above (`restore-omarchy-branding-screensaver.sh`
+reverts it). Since this is often triggered from a keybinding or menu with
+no terminal attached for a password prompt, also install a narrowly-scoped
+sudoers rule (only these two exact scripts, only for your user — not
+general sudo access) so it works from anywhere:
+
+```
+sudo bash install-screensaver-sudoers.sh
+```
+
+Validated with `visudo -c` before it touches anything, since a broken
+sudoers file can lock out `sudo` entirely. Revert with
+`sudo bash uninstall-screensaver-sudoers.sh`.
