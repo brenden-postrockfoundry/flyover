@@ -102,26 +102,14 @@ It resolves the `flyover` binary via `PATH` first, falling back to
 
 ## Screensaver (experimental)
 
-Omarchy's built-in screensaver already animates the plain text in
-`~/.config/omarchy/branding/screensaver.txt` (via `ttfx`, re-reading the
-file fresh each effect cycle) — so `flyover --ascii-snapshot [path]` renders
-one static plain-ASCII frame of the current scope (rings, contacts, data
-tags; no color or trails, since `ttfx` recolors per-effect regardless and a
-one-shot process has no history to fade from) to that file, or wherever you
-point it. Wire it to a timer of your choosing and Omarchy's own screensaver
-does the rest:
-
-```
-flyover --ascii-snapshot ~/.config/omarchy/branding/screensaver.txt
-```
-
-By default `ttfx` puts each refresh through a random animated effect
-(matrix rain, fireworks, etc.), restarting with a new one every few seconds
-— independent of how often the snapshot itself changes. If you'd rather the
-scope just sit there statically (centered, no effect) while flyover is
-actively feeding it, see [`packaging/screensaver/`](packaging/screensaver/)
-for the systemd timer wiring plus an optional patch to Omarchy's
-screensaver script that swaps in static rendering.
+`flyover --screensaver` runs the same live scope as the interactive TUI —
+sweep, fading trails, theme sync — but never reads keyboard input itself,
+so something else has to own exit-on-keypress and actually launch it in
+place of a normal effect. See [`packaging/screensaver/`](packaging/screensaver/)
+for a patch to Omarchy's own screensaver script that does exactly that:
+it launches `flyover --screensaver` instead of running static branding
+text through `ttfx`'s random effects, and kills it the same way it already
+manages `ttfx` — on any keypress or loss of focus.
 
 ## Dev tools
 

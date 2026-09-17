@@ -1,4 +1,3 @@
-mod ascii_snapshot;
 mod braille_scope;
 mod data;
 mod font;
@@ -210,27 +209,89 @@ fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// `flyover --ascii-snapshot [path]`: one-shot fetch + plain-ASCII render of
-/// the current scope, written to `path` (default: ./screensaver.txt in the
-/// cwd — deliberately not Omarchy's real branding path, so this never
-/// silently overwrites it; point it there explicitly once you're ready).
-/// No color, no trails, no sweep animation: color gets discarded by ttfx's
-/// own per-effect recoloring regardless, and a one-shot process has no
-/// history to fade a trail from or state to animate a sweep across — the
-/// "motion" is entirely ttfx's job on whatever frame we hand it.
-fn run_ascii_snapshot(out_path: &str) -> std::io::Result<()> {
-    let location = data::location::load().map_err(std::io::Error::other)?;
-    let aircraft = data::fetch::fetch_nearby(location.latitude, location.longitude)
-        .map_err(std::io::Error::other)?;
-    // Match the fetch radius exactly, so every contact the pill counts (it
-    // queries the same MAX_RADIUS_NM) also appears on the screensaver —
-    // otherwise contacts beyond the TUI's tighter default zoom (40nm) were
-    // silently dropped, making the scope look empty while the pill said
-    // otherwise.
-    let text = ascii_snapshot::render(70, 35, &aircraft, data::fetch::MAX_RADIUS_NM as f64);
-    std::fs::write(out_path, text)?;
-    println!("wrote {out_path}");
-    Ok(())
+/// `flyover --screensaver`: runs the same live scope (sweep, fading trails,
+/// theme sync) as the interactive TUI, meant to be launched by Omarchy's
+/// screensaver script in place of `ttfx`. Deliberately never touches
+/// crossterm's event queue — Omarchy's script owns "exit on any key",
+/// reading the same tty with its own `read` loop (exactly how it already
+/// manages ttfx, which doesn't read input either); a second reader here
+/// would just steal bytes from that loop instead of actually handling them.
+fn run_screensaver() -> std::io::Result<()> {
+    if cfg!(debug_assertions) {
+        eprintln!("flyover: running a debug build — the scope will look choppy.");
+        eprintln!("         use `cargo run --release` for smooth animation.");
+    }
+
+    let location = match data::location::load() {
+        Ok(loc) => loc,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
+
+    let rx = data::fetch::spawn_poller(location.latitude, location.longitude);
+    let mut aircraft: Vec<Aircraft> = Vec::new();
+    let mut trails = TrailStore::default();
+    let sweep_start = Instant::now();
+    let mut theme = ThemeWatcher::new();
+    let mut last_theme_check = Instant::now();
+    let font = match font::load_monospace() {
+        Ok(f) => f,
+        Err(err) => {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+    };
+
+    let mut terminal = tui::init()?;
+    let picker = match Picker::from_query_stdio() {
+        Ok(p) => p,
+        Err(err) => {
+            tui::restore()?;
+            eprintln!("couldn't detect terminal image support: {err}");
+            std::process::exit(1);
+        }
+    };
+
+    loop {
+        if last_theme_check.elapsed() >= THEME_POLL_INTERVAL {
+            theme.poll();
+            last_theme_check = Instant::now();
+        }
+
+        while let Ok(result) = rx.try_recv()
+            && let Ok(list) = result
+        {
+            trails.update(&list);
+            aircraft = list;
+        }
+
+        let title = format!(
+            " flyover — {} — {} contact(s) ",
+            location.name,
+            aircraft.len()
+        );
+
+        terminal.draw(|frame| {
+            scope::render(
+                frame,
+                frame.area(),
+                title,
+                String::new(),
+                &aircraft,
+                &trails,
+                DEFAULT_ZOOM_NM,
+                sweep_start,
+                &theme.palette,
+                &picker,
+                &font,
+                scope::RenderMode::Sixel,
+            );
+        })?;
+
+        std::thread::sleep(Duration::from_millis(80));
+    }
 }
 
 fn main() -> std::io::Result<()> {
@@ -243,9 +304,8 @@ fn main() -> std::io::Result<()> {
         Some("--bench") => {
             return run_bench().map_err(|e| std::io::Error::other(e.to_string()));
         }
-        Some("--ascii-snapshot") => {
-            let out_path = args.next().unwrap_or_else(|| "screensaver.txt".to_string());
-            return run_ascii_snapshot(&out_path);
+        Some("--screensaver") => {
+            return run_screensaver();
         }
         _ => {}
     }

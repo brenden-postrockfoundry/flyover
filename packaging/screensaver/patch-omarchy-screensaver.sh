@@ -1,15 +1,15 @@
 #!/bin/bash
-# Patches Omarchy's system screensaver script so that while flyover is
-# actively feeding it (screensaver.txt refreshed in the last 45s, tracked via
-# ~/.cache/flyover/screensaver-active), it displays the content statically
-# -- centered, no ttfx effect -- instead of running it through ttfx's
-# --random-effect animation. Any other branding content (or a stale/disabled
-# flyover install) still gets the normal animated behavior.
+# Patches Omarchy's system screensaver script to run flyover's own live
+# scope (sweep, fading trails, theme sync) directly, instead of running
+# static branding text through ttfx's --random-effect animation. Falls back
+# to the stock ttfx behavior if flyover isn't installed/built.
 #
-# This edits a file owned by the omarchy package (resolved via
-# `command -v omarchy-screensaver`, which is a symlink into /usr/bin), so a
-# future `omarchy update` can silently revert it. Re-run this script any time
-# that happens -- it's idempotent and safe to run repeatedly.
+# This edits `omarchy-screensaver`, a file owned by the omarchy package
+# (resolved via `command -v omarchy-screensaver`, a symlink into /usr/bin)
+# -- so it needs sudo, and a future `omarchy update` can silently revert it.
+# Re-run this script any time that happens; it's idempotent (backs up the
+# original exactly once, safe to run repeatedly after that, including to
+# upgrade an older version of this same patch).
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
@@ -17,22 +17,20 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 target=$(readlink -f "$(command -v omarchy-screensaver)")
-marker="# flyover:static-patch v1"
-
-if grep -qF "$marker" "$target" 2>/dev/null; then
-  echo "Already patched: $target"
-  exit 0
-fi
-
 backup="${target}.pre-flyover.bak"
-cp "$target" "$backup"
-echo "Backed up original to $backup"
+
+if [[ -f $backup ]]; then
+  echo "Original already backed up at $backup"
+else
+  cp "$target" "$backup"
+  echo "Backed up original to $backup"
+fi
 
 cat >"$target" <<'SCRIPT'
 #!/bin/bash
 
 # omarchy:summary=Run the Omarchy screensaver using random effects from TTE.
-# flyover:static-patch v1 -- see packaging/screensaver/patch-omarchy-screensaver.sh
+# flyover:live-patch v2 -- see packaging/screensaver/patch-omarchy-screensaver.sh
 # in https://github.com/linuxbren/flyover
 
 screensaver_in_focus() {
@@ -41,6 +39,7 @@ screensaver_in_focus() {
 
 exit_screensaver() {
   hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null || hyprctl keyword cursor:invisible false &>/dev/null || true
+  pkill -f 'flyover --screensaver' 2>/dev/null
   pkill -x ttfx 2>/dev/null
   pkill -f '[o]rg.omarchy.screensaver' 2>/dev/null
   exit 0
@@ -56,9 +55,9 @@ hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null || hyprc
 tty=$(tty 2>/dev/null)
 
 # Terminals allocate the pty at the default 80x24 and only resize it once the
-# compositor has told the window how big it is. ttfx measures the terminal once,
-# at startup, so starting it before the resize lands sizes an 80x24 canvas and
-# paints it into the corner of a fullscreen window.
+# compositor has told the window how big it is. Both flyover and ttfx measure
+# the terminal once, at startup, so starting either before the resize lands
+# sizes an 80x24 canvas and paints it into the corner of a fullscreen window.
 wait_for_terminal_resize() {
   local deadline=$((SECONDS + 2))
   while ((SECONDS < deadline)) && [[ $(stty size 2>/dev/null) == "24 80" ]]; do
@@ -68,59 +67,30 @@ wait_for_terminal_resize() {
 
 wait_for_terminal_resize
 
-content="$HOME/.config/omarchy/branding/screensaver.txt"
-flyover_marker="$HOME/.cache/flyover/screensaver-active"
-
-flyover_marker_fresh() {
-  [[ -f $flyover_marker ]] || return 1
-  local now age
-  now=$(date +%s)
-  age=$((now - $(stat -c %Y "$flyover_marker" 2>/dev/null || echo 0)))
-  ((age < 45))
-}
-
-render_static() {
-  clear
-  local term_rows term_cols content_rows content_cols pad_top pad_left
-  read -r term_rows term_cols < <(stty size 2>/dev/null || echo "24 80")
-  content_rows=$(wc -l <"$content")
-  content_cols=$(awk '{ print length }' "$content" | sort -rn | head -1)
-  pad_top=$(((term_rows - content_rows) / 2))
-  pad_left=$(((term_cols - content_cols) / 2))
-  ((pad_top < 0)) && pad_top=0
-  ((pad_left < 0)) && pad_left=0
-  for ((i = 0; i < pad_top; i++)); do echo; done
-  while IFS= read -r line; do
-    printf '%*s%s\n' "$pad_left" "" "$line"
-  done <"$content"
-}
+flyover_bin=$(command -v flyover || true)
+[[ -z $flyover_bin ]] && flyover_bin="$HOME/flyover/target/release/flyover"
 
 while true; do
-  if flyover_marker_fresh; then
-    render_static
-    last_mtime=$(stat -c %Y "$content" 2>/dev/null || echo 0)
-    while flyover_marker_fresh; do
+  if [[ -x $flyover_bin ]]; then
+    "$flyover_bin" --screensaver &
+
+    while pgrep -t "${tty#/dev/}" -f 'flyover --screensaver' >/dev/null; do
       if read -n1 -t 1 || ! screensaver_in_focus; then
         exit_screensaver
       fi
-      cur_mtime=$(stat -c %Y "$content" 2>/dev/null || echo 0)
-      if [[ $cur_mtime != "$last_mtime" ]]; then
-        render_static
-        last_mtime=$cur_mtime
+    done
+  else
+    # flyover isn't installed/built -- fall back to Omarchy's stock effect.
+    ttfx -i ~/.config/omarchy/branding/screensaver.txt \
+      --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
+      --random-effect --no-eol --no-restore-cursor &
+
+    while pgrep -t "${tty#/dev/}" -x ttfx >/dev/null; do
+      if read -n1 -t 1 || ! screensaver_in_focus; then
+        exit_screensaver
       fi
     done
-    continue
   fi
-
-  ttfx -i "$content" \
-    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
-    --random-effect --no-eol --no-restore-cursor &
-
-  while pgrep -t "${tty#/dev/}" -x ttfx >/dev/null; do
-    if read -n1 -t 1 || ! screensaver_in_focus; then
-      exit_screensaver
-    fi
-  done
 done
 SCRIPT
 
