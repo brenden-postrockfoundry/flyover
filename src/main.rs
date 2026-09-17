@@ -231,12 +231,15 @@ fn screensaver_lost_focus() -> bool {
     value.get("class").and_then(|c| c.as_str()) != Some("org.omarchy.screensaver")
 }
 
-/// `flyover --screensaver`: runs the same live scope (sweep, fading trails,
-/// theme sync) as the interactive TUI, meant to be launched by Omarchy's
-/// screensaver script in place of `ttfx`. Exits on any keypress or when the
-/// screensaver window loses focus, so the wrapping script only needs to run
-/// it in the foreground and clean up once it returns.
-fn run_screensaver() -> std::io::Result<()> {
+/// `flyover --screensaver [--ascii]`: runs the same live scope (sweep,
+/// fading trails, theme sync) as the interactive TUI, meant to be launched
+/// by Omarchy's screensaver script in place of `ttfx`. Exits on any
+/// keypress or when the screensaver window loses focus, so the wrapping
+/// script only needs to run it in the foreground and clean up once it
+/// returns. `--ascii` selects the Braille render mode, which — unlike
+/// Sixel — never queries the terminal for image support, so it works
+/// without ever touching stdout/stdin at startup.
+fn run_screensaver(mode: scope::RenderMode) -> std::io::Result<()> {
     if cfg!(debug_assertions) {
         eprintln!("flyover: running a debug build — the scope will look choppy.");
         eprintln!("         use `cargo run --release` for smooth animation.");
@@ -265,12 +268,25 @@ fn run_screensaver() -> std::io::Result<()> {
     };
 
     let mut terminal = tui::init()?;
-    let picker = match Picker::from_query_stdio() {
-        Ok(p) => p,
-        Err(err) => {
-            tui::restore()?;
-            eprintln!("couldn't detect terminal image support: {err}");
-            std::process::exit(1);
+    let picker = match mode {
+        scope::RenderMode::Sixel => match Picker::from_query_stdio() {
+            Ok(p) => p,
+            Err(err) => {
+                tui::restore()?;
+                eprintln!("couldn't detect terminal image support: {err}");
+                std::process::exit(1);
+            }
+        },
+        // Braille mode never draws an image, so the real query (and its
+        // startup round-trip over stdin/stdout) is unnecessary — these
+        // placeholder metrics are never used for anything.
+        scope::RenderMode::Braille =>
+        {
+            #[allow(deprecated)]
+            Picker::from_fontsize(ratatui_image::FontSize {
+                width: 9,
+                height: 18,
+            })
         }
     };
 
@@ -323,7 +339,7 @@ fn run_screensaver() -> std::io::Result<()> {
                 &theme.palette,
                 &picker,
                 &font,
-                scope::RenderMode::Sixel,
+                mode,
             );
         })?;
     }
@@ -343,7 +359,12 @@ fn main() -> std::io::Result<()> {
             return run_bench().map_err(|e| std::io::Error::other(e.to_string()));
         }
         Some("--screensaver") => {
-            return run_screensaver();
+            let mode = if args.next().as_deref() == Some("--ascii") {
+                scope::RenderMode::Braille
+            } else {
+                scope::RenderMode::Sixel
+            };
+            return run_screensaver(mode);
         }
         _ => {}
     }
