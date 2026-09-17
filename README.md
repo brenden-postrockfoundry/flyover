@@ -98,7 +98,9 @@ omarchy bar put bren.flyover --section right
 
 It resolves the `flyover` binary via `PATH` first, falling back to
 `$HOME/flyover/target/release/flyover` — so it works whether you've
-`cargo install`ed it or just built it in place.
+`cargo install`ed it or just built it in place. Right-click toggles the
+[screensaver](#screensaver-experimental) on/off (see below) once you've set
+that up; left-click always just opens the scope.
 
 ## Screensaver (experimental)
 
@@ -112,6 +114,13 @@ It defaults to whichever render mode (Sixel or Braille) you last set with
 `v` in the interactive TUI — the screensaver mirrors that setting rather
 than always forcing Sixel. `--screensaver --sixel` / `--screensaver --ascii`
 override that for one-off testing without changing the saved setting.
+
+Omarchy has no pluggable "choose a screensaver" list, so instead of a
+separate toggle command, enabling/disabling this repurposes Omarchy's own
+`omarchy branding screensaver text|reset` (normally "edit branding text" /
+"reset to default") — see [`packaging/screensaver/README.md`](packaging/screensaver/README.md#menu-integration-optional)
+for the one-time setup. Once that's done, the bar widget's right-click
+(above) is the easiest way to flip it.
 
 ## Dev tools
 
