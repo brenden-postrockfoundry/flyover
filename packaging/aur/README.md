@@ -30,6 +30,6 @@ environment against a plain `cargo build --release`, which succeeds fine —
    cp PKGBUILD .SRCINFO flyover/
    cd flyover
    git add PKGBUILD .SRCINFO
-   git commit -m "flyover 0.2.0-2"
+   git commit -m "flyover 0.2.1-1"
    git push
    ```
