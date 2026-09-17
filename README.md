@@ -108,6 +108,11 @@ loss of focus. See [`packaging/screensaver/`](packaging/screensaver/) for a
 patch to Omarchy's own screensaver script that launches it in place of
 running static branding text through `ttfx`'s random effects.
 
+It defaults to whichever render mode (Sixel or Braille) you last set with
+`v` in the interactive TUI — the screensaver mirrors that setting rather
+than always forcing Sixel. `--screensaver --sixel` / `--screensaver --ascii`
+override that for one-off testing without changing the saved setting.
+
 ## Dev tools
 
 - `flyover --preview <path>.png` — renders a synthetic scene straight to a

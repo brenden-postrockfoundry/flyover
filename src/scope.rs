@@ -14,7 +14,8 @@ pub const MIN_ZOOM_NM: f64 = 5.0;
 pub const MAX_ZOOM_NM: f64 = 100.0;
 const CONTROLS: &str = "q   +/-   0   v";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum RenderMode {
     /// Anti-aliased CRT-glow graphics via an off-screen rasterizer + Sixel.
     /// Better looking, but real-world per-frame cost (mostly the terminal's

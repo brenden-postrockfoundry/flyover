@@ -4,6 +4,7 @@ mod font;
 mod geometry;
 mod raster;
 mod scope;
+mod settings;
 mod sixel_scope;
 mod theme;
 mod trail;
@@ -368,10 +369,12 @@ fn main() -> std::io::Result<()> {
             return run_bench().map_err(|e| std::io::Error::other(e.to_string()));
         }
         Some("--screensaver") => {
-            let mode = if args.next().as_deref() == Some("--ascii") {
-                scope::RenderMode::Braille
-            } else {
-                scope::RenderMode::Sixel
+            // --ascii/--sixel override the saved setting for one-off manual
+            // testing without touching what the interactive TUI is set to.
+            let mode = match args.next().as_deref() {
+                Some("--ascii") => scope::RenderMode::Braille,
+                Some("--sixel") => scope::RenderMode::Sixel,
+                _ => settings::load_render_mode(scope::RenderMode::Sixel),
             };
             return run_screensaver(mode);
         }
@@ -402,7 +405,7 @@ fn main() -> std::io::Result<()> {
     let mut last_error: Option<String> = None;
     let mut last_update: Option<Instant> = None;
     let mut zoom_radius_nm: f64 = DEFAULT_ZOOM_NM;
-    let mut render_mode = scope::RenderMode::Sixel;
+    let mut render_mode = settings::load_render_mode(scope::RenderMode::Sixel);
     let sweep_start = Instant::now();
     let mut theme = ThemeWatcher::new();
     let mut last_theme_check = Instant::now();
@@ -444,7 +447,10 @@ fn main() -> std::io::Result<()> {
                     zoom_radius_nm = (zoom_radius_nm + ZOOM_STEP_NM).min(scope::MAX_ZOOM_NM);
                 }
                 KeyCode::Char('0') => zoom_radius_nm = DEFAULT_ZOOM_NM,
-                KeyCode::Char('v') => render_mode = render_mode.toggled(),
+                KeyCode::Char('v') => {
+                    render_mode = render_mode.toggled();
+                    settings::save_render_mode(render_mode);
+                }
                 _ => {}
             }
         }
