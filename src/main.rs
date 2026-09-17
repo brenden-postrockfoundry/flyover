@@ -290,6 +290,15 @@ fn run_screensaver(mode: scope::RenderMode) -> std::io::Result<()> {
         }
     };
 
+    // Only enforce exit-on-focus-loss when actually launched as the real
+    // screensaver window (Hyprland already reports us focused as
+    // `org.omarchy.screensaver` by the time this runs, since the launcher
+    // focuses the window before executing it). Run manually in an ordinary
+    // terminal for testing, and this check would otherwise immediately see
+    // "not focused" and self-terminate after about a second — so it's
+    // disabled for the rest of the run whenever that's the case, falling
+    // back to exit-on-keypress only.
+    let watch_focus = !screensaver_lost_focus();
     let mut last_focus_check = Instant::now();
     const FOCUS_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -301,7 +310,7 @@ fn run_screensaver(mode: scope::RenderMode) -> std::io::Result<()> {
             break;
         }
 
-        if last_focus_check.elapsed() >= FOCUS_POLL_INTERVAL {
+        if watch_focus && last_focus_check.elapsed() >= FOCUS_POLL_INTERVAL {
             if screensaver_lost_focus() {
                 break;
             }
