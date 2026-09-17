@@ -13,13 +13,17 @@ the screensaver script launches `flyover --screensaver` and lets it run,
 falling back to the stock `ttfx` behavior only if flyover isn't
 installed/built.
 
-flyover never reads keyboard input in this mode — Omarchy's script owns
-"exit on any key" itself, watching the same tty with its own `read` loop
-(exactly how it already manages `ttfx`, which doesn't read input either)
-and killing the flyover process when it's time to exit. Because the
-process only exists while the screensaver window is actually open, it
-naturally never fetches from adsb.lol outside of genuine idle time — no
-separate idle-detection timer needed.
+flyover runs in the foreground and owns its own exit logic in this mode —
+any keypress or losing focus (checked via `hyprctl`) ends it, and the
+script cleans up once it returns. (An earlier version had the script
+background flyover and watch the same tty itself, the way it already
+watches `ttfx` — but that meant two processes racing to read the same
+stdin, which sporadically broke flyover's terminal-capability query at
+startup. Only the `ttfx` fallback below still uses that pattern, since
+`ttfx` itself never reads input.) Because the process only exists while
+the screensaver window is actually open, it naturally never fetches from
+adsb.lol outside of genuine idle time — no separate idle-detection timer
+needed.
 
 ## Install
 

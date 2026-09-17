@@ -30,7 +30,7 @@ cat >"$target" <<'SCRIPT'
 #!/bin/bash
 
 # omarchy:summary=Run the Omarchy screensaver using random effects from TTE.
-# flyover:live-patch v2 -- see packaging/screensaver/patch-omarchy-screensaver.sh
+# flyover:live-patch v3 -- see packaging/screensaver/patch-omarchy-screensaver.sh
 # in https://github.com/linuxbren/flyover
 
 screensaver_in_focus() {
@@ -39,7 +39,6 @@ screensaver_in_focus() {
 
 exit_screensaver() {
   hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null || hyprctl keyword cursor:invisible false &>/dev/null || true
-  pkill -f 'flyover --screensaver' 2>/dev/null
   pkill -x ttfx 2>/dev/null
   pkill -f '[o]rg.omarchy.screensaver' 2>/dev/null
   exit 0
@@ -70,27 +69,25 @@ wait_for_terminal_resize
 flyover_bin=$(command -v flyover || true)
 [[ -z $flyover_bin ]] && flyover_bin="$HOME/flyover/target/release/flyover"
 
+if [[ -x $flyover_bin ]]; then
+  # Runs in the foreground and owns its own exit-on-keypress/focus-loss
+  # logic -- unlike ttfx below, nothing else here reads this tty, so there's
+  # no risk of stealing bytes from its terminal-capability query at startup.
+  "$flyover_bin" --screensaver
+  exit_screensaver
+fi
+
+# flyover isn't installed/built -- fall back to Omarchy's stock effect.
 while true; do
-  if [[ -x $flyover_bin ]]; then
-    "$flyover_bin" --screensaver &
+  ttfx -i ~/.config/omarchy/branding/screensaver.txt \
+    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
+    --random-effect --no-eol --no-restore-cursor &
 
-    while pgrep -t "${tty#/dev/}" -f 'flyover --screensaver' >/dev/null; do
-      if read -n1 -t 1 || ! screensaver_in_focus; then
-        exit_screensaver
-      fi
-    done
-  else
-    # flyover isn't installed/built -- fall back to Omarchy's stock effect.
-    ttfx -i ~/.config/omarchy/branding/screensaver.txt \
-      --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
-      --random-effect --no-eol --no-restore-cursor &
-
-    while pgrep -t "${tty#/dev/}" -x ttfx >/dev/null; do
-      if read -n1 -t 1 || ! screensaver_in_focus; then
-        exit_screensaver
-      fi
-    done
-  fi
+  while pgrep -t "${tty#/dev/}" -x ttfx >/dev/null; do
+    if read -n1 -t 1 || ! screensaver_in_focus; then
+      exit_screensaver
+    fi
+  done
 done
 SCRIPT
 

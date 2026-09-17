@@ -103,13 +103,10 @@ It resolves the `flyover` binary via `PATH` first, falling back to
 ## Screensaver (experimental)
 
 `flyover --screensaver` runs the same live scope as the interactive TUI —
-sweep, fading trails, theme sync — but never reads keyboard input itself,
-so something else has to own exit-on-keypress and actually launch it in
-place of a normal effect. See [`packaging/screensaver/`](packaging/screensaver/)
-for a patch to Omarchy's own screensaver script that does exactly that:
-it launches `flyover --screensaver` instead of running static branding
-text through `ttfx`'s random effects, and kills it the same way it already
-manages `ttfx` — on any keypress or loss of focus.
+sweep, fading trails, theme sync — exiting on its own on any keypress or
+loss of focus. See [`packaging/screensaver/`](packaging/screensaver/) for a
+patch to Omarchy's own screensaver script that launches it in place of
+running static branding text through `ttfx`'s random effects.
 
 ## Dev tools
 

@@ -209,13 +209,33 @@ fn run_bench() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Screensaver-mode focus check: true once Hyprland's active window is no
+/// longer the screensaver itself. Shelled out rather than piped in from the
+/// wrapping script — an earlier version had Omarchy's screensaver script
+/// background this process and poll `hyprctl`/read stdin itself, but that
+/// made two processes race to read the same tty (this process's own
+/// terminal-capability query at startup vs. the script's exit-on-keypress
+/// read), which sporadically broke Sixel detection. Now this process owns
+/// both checks itself and runs in the foreground with nothing else reading
+/// its stdin.
+fn screensaver_lost_focus() -> bool {
+    let Ok(output) = std::process::Command::new("hyprctl")
+        .args(["activewindow", "-j"])
+        .output()
+    else {
+        return false;
+    };
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&output.stdout) else {
+        return false;
+    };
+    value.get("class").and_then(|c| c.as_str()) != Some("org.omarchy.screensaver")
+}
+
 /// `flyover --screensaver`: runs the same live scope (sweep, fading trails,
 /// theme sync) as the interactive TUI, meant to be launched by Omarchy's
-/// screensaver script in place of `ttfx`. Deliberately never touches
-/// crossterm's event queue — Omarchy's script owns "exit on any key",
-/// reading the same tty with its own `read` loop (exactly how it already
-/// manages ttfx, which doesn't read input either); a second reader here
-/// would just steal bytes from that loop instead of actually handling them.
+/// screensaver script in place of `ttfx`. Exits on any keypress or when the
+/// screensaver window loses focus, so the wrapping script only needs to run
+/// it in the foreground and clean up once it returns.
 fn run_screensaver() -> std::io::Result<()> {
     if cfg!(debug_assertions) {
         eprintln!("flyover: running a debug build — the scope will look choppy.");
@@ -254,7 +274,24 @@ fn run_screensaver() -> std::io::Result<()> {
         }
     };
 
+    let mut last_focus_check = Instant::now();
+    const FOCUS_POLL_INTERVAL: Duration = Duration::from_secs(1);
+
     loop {
+        if event::poll(Duration::from_millis(80))? {
+            // Any input at all ends the screensaver — consume it and exit
+            // rather than trying to interpret it.
+            let _ = event::read()?;
+            break;
+        }
+
+        if last_focus_check.elapsed() >= FOCUS_POLL_INTERVAL {
+            if screensaver_lost_focus() {
+                break;
+            }
+            last_focus_check = Instant::now();
+        }
+
         if last_theme_check.elapsed() >= THEME_POLL_INTERVAL {
             theme.poll();
             last_theme_check = Instant::now();
@@ -289,9 +326,10 @@ fn run_screensaver() -> std::io::Result<()> {
                 scope::RenderMode::Sixel,
             );
         })?;
-
-        std::thread::sleep(Duration::from_millis(80));
     }
+
+    tui::restore()?;
+    Ok(())
 }
 
 fn main() -> std::io::Result<()> {
