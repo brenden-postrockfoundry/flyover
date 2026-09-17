@@ -304,10 +304,15 @@ fn run_screensaver(mode: scope::RenderMode) -> std::io::Result<()> {
     const FOCUS_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
     loop {
-        if event::poll(Duration::from_millis(80))? {
-            // Any input at all ends the screensaver — consume it and exit
-            // rather than trying to interpret it.
-            let _ = event::read()?;
+        if event::poll(Duration::from_millis(80))?
+            && matches!(event::read()?, Event::Key(_) | Event::Mouse(_))
+        {
+            // Any keyboard or mouse input ends the screensaver. crossterm
+            // also reports terminal Resize/FocusGained/FocusLost as events
+            // here, which aren't user input -- treating those as "a key
+            // was pressed" too meant an unrelated window resize (e.g. a
+            // monitor change, or a compositor reflow) would silently kill
+            // the screensaver.
             break;
         }
 
